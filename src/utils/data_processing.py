@@ -195,8 +195,8 @@ def load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, barcodes, fi
             filter_gene_min_cells=30,
             min_genes_per_cell=1000,
             fig_dir=fig_dir,
-            plot_genes_by_counts=True
-            h5ad_save_path=os.path.join(DATASET_DIR, "atac_data.h5ad")
+            plot_genes_by_counts=True,
+            h5ad_save_path=atac_h5ad_save_path
         )
         return atac_adata
         
