@@ -98,4 +98,4 @@ def create_rna_topic_model(rna_data_path, rna_h5ad_save_path):
     return rna_adata, trained_rna_model, barcodes
 
 rna_adata, trained_rna_model, barcodes = create_rna_topic_model(rna_data_path, rna_h5ad_save_path)
-atac_adata, trained_atac_model = create_rna_topic_model(atac_data_path, atac_h5ad_save_path, barcodes)
+atac_adata, trained_atac_model = create_atac_topic_model(atac_data_path, atac_h5ad_save_path, barcodes)

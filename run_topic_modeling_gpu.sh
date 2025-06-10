@@ -23,6 +23,6 @@ cd "/gpfs/Home/esm5360/MIRA/"
 # python3 Step020.mira_rna_topic_modeling.py
 
 echo "Running analysis of MIRA embeddings"
-python3 src/Step040.mira_atlas_level_integration.py
+python3 src/mira_topic_modeling.py
 
 echo "DONE"
