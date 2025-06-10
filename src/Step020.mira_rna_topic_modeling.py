@@ -17,20 +17,20 @@ from utils.topic_models import (
     create_and_fit_bayesian_tuner_to_data
 )
 
-base_dir = "/gpfs/Homer/esm5360/MIRA/"
-fig_dir = os.path.join(base_dir, "figures")
-dataset_dir = os.path.join(base_dir, "mira-datasets")
-dataset_name = "ds011"
+BASE_DIR = "/gpfs/Homer/esm5360/MIRA/"
+FIG_DIR = os.path.join(BASE_DIR, "figures")
+DATASET_DIR = os.path.join(BASE_DIR, "mira-datasets")
+DATASET_NAME = "ds011"
 
-def create_rna_topic_model(dataset_dir, dataset_name, base_dir, fig_dir):
-    rna_adata = anndata.read_h5ad(os.path.join(dataset_dir, "rna_adata.h5ad"))
+def create_rna_topic_model():
+    rna_adata = anndata.read_h5ad(os.path.join(DATASET_DIR, "rna_adata.h5ad"))
 
-    model_save_path = os.path.join(dataset_dir, f"{dataset_name}_rna_model")
+    model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_model")
 
     rna_expr_model = load_or_create_mira_expression_topic_model(rna_adata, model_save_path)
     rna_expr_model, num_sig_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
 
-    tuner_save_dir = os.path.join(base_dir, f"{dataset_name}_rna/0")
+    tuner_save_dir = os.path.join(BASE_DIR, f"{DATASET_NAME}_rna/0")
 
     trained_rna_model = create_and_fit_bayesian_tuner_to_data(
         rna_expr_model, 
@@ -38,7 +38,7 @@ def create_rna_topic_model(dataset_dir, dataset_name, base_dir, fig_dir):
         num_sig_topics, 
         tuner_save_name=tuner_save_dir,
         model_save_path=model_save_path,
-        fig_dir=fig_dir,
+        fig_dir=FIG_DIR,
         plot_loss=True,
         plot_pareto=True
         )

@@ -143,8 +143,7 @@ def create_and_fit_bayesian_tuner_to_data(
             Directory path to save the BayesianTuner model to. Saves the model to the `models/<save_name>`
             directory.
         model_save_name (str):
-            Full path for saving the trained model file. Do not specify a file extension, '.pth' is added 
-            automatically.
+            Full path for saving the trained model file.
         n_jobs (int):
             Number of parallelization jobs. Max is 5 unless using the REDIS backend
         fig_dir (str):
@@ -212,7 +211,7 @@ def create_and_fit_bayesian_tuner_to_data(
     print("Finding best model")
     model = tuner.fetch_best_weights()
 
-    print(f"Saving best model to '{model_save_path}.pth'")
-    model.save(f'{model_save_path}.pth')
+    print(f"Saving best model to '{model_save_path}'")
+    model.save(f'{model_save_path}')
     
     return model

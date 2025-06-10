@@ -154,3 +154,51 @@ def rna_data_preprocessing(
         rna_adata.write_h5ad(h5ad_save_path)
     
     return rna_adata
+
+
+def load_and_process_rna_data(rna_data_path, rna_h5ad_save_path):
+    
+    if not os.path.isfile(rna_h5ad_save_path):
+        print("  - Reading RNAseq raw data parquet file")
+        rna_data = pd.read_parquet(rna_data_path, engine="pyarrow")
+
+        print("  - Converting DataFrame to AnnData object")
+        rna_adata = anndata_from_dataframe(rna_data, "gene_id")
+
+        print("  - Running RNA preprocessing")
+        rna_adata = rna_data_preprocessing(
+            rna_adata=rna_adata,
+            min_cells_per_gene=15,
+            target_read_depth=1e4,
+            min_gene_disp=0.5,
+            h5ad_save_path=rna_h5ad_save_path
+        )
+        
+        return rna_adata
+        
+    else:
+        return anndata.read_h5ad(rna_h5ad_save_path)
+
+def load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, barcodes, fig_dir):
+    
+    if not os.path.isfile(atac_h5ad_save_path):
+        print("  - Reading ATACseq raw data parquet file")
+        atac_data = pd.read_parquet(atac_data_path, engine="pyarrow")
+
+        print("  - Converting DataFrame to AnnData object")
+        atac_adata = anndata_from_dataframe(atac_data, "peak_id")
+
+        print("  - Running ATAC preprocessing")
+        atac_adata = atac_data_preprocessing(
+            atac_adata,
+            barcodes,
+            filter_gene_min_cells=30,
+            min_genes_per_cell=1000,
+            fig_dir=fig_dir,
+            plot_genes_by_counts=True
+            h5ad_save_path=os.path.join(DATASET_DIR, "atac_data.h5ad")
+        )
+        return atac_adata
+        
+    else:
+        return anndata.read_h5ad(atac_h5ad_save_path)
