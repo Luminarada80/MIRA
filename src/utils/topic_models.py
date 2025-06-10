@@ -1,19 +1,15 @@
-import mira
-
 import os
-import anndata
-import scanpy as sc
-import numpy as np
+from typing import Tuple, Union
+
+import anndata  # type: ignore[import-untyped]
 import matplotlib.pyplot as plt
-from mira.topic_model.modality_mixins.accessibility_model import AccessibilityModel
-from mira.topic_model.modality_mixins.expression_model import ExpressionModel
-from typing import Union, Tuple
+import mira  # type: ignore[import-untyped]
+import torch
+from mira.topic_model.modality_mixins.accessibility_model import \
+    AccessibilityModel  # type: ignore[import-untyped]
+from mira.topic_model.modality_mixins.expression_model import \
+    ExpressionModel  # type: ignore[import-untyped]
 
-plt.rcParams.update({'font.size': 14})
-
-fig_dir = "/gpfs/Home/esm5360/MIRA/figures"
-
-rna_adata = anndata.read_h5ad("mira-datasets/rna_adata.h5ad")
 
 def get_model_modality(model) -> str:
     """Return 'expression' or 'accessibility' based on model type."""
@@ -24,40 +20,83 @@ def get_model_modality(model) -> str:
     else:
         raise TypeError(f"Model of type '{type(model)}' is not a dirichlet expression or accessibility object")
 
+
 def load_or_create_mira_expression_topic_model(
-    rna_adata, 
-    save_path: Union[None, str] = None
+    rna_adata: anndata.AnnData, 
+    model_path: str = None
     ) -> ExpressionModel:
     
-    if os.path.isfile('mira-datasets/ds011_model.pth'):
-        model = mira.topic_model.load_model('mira-datasets/ds011_rna_model.pth')
+    try:
+        return mira.topic_model.load_model(model_path)
+    except ValueError:
+        print(f"No MIRA model.pth file found at path {model_path}, creating...")
 
-    else:
-
-        print("Create the MIRA model")
-        model = mira.topics.make_model(
-            rna_adata.n_obs, rna_adata.n_vars,
-            feature_type = 'expression',
-            highly_variable_key='highly_variable',
-            counts_layer='counts',
+    print("Creating MIRA expression model from RNAseq AnnData")
+    model: ExpressionModel = mira.topics.make_model(
+        rna_adata.n_obs, rna_adata.n_vars,
+        feature_type = 'expression',
+        highly_variable_key='highly_variable',
+        counts_layer='counts',
         )
+    
+    model.save(model_path)
+    
+    return model
+
+def load_or_create_mira_accessibility_topic_model(
+    atac_adata: anndata.AnnData,
+    model_path: str = None
+    ) -> AccessibilityModel:
+    
+    try:
+        return mira.topic_model.load_model(model_path)
+    except ValueError:
+        print(f"No MIRA model.pth file found at path {model_path}, creating...")
+    
+    if torch.cuda.is_available():
+        atac_encoder = "DAN"
+    else:
+        atac_encoder = "light"
+
+    print("Creating MIRA accessibility model from ATACseq AnnData")
+    model: AccessibilityModel = mira.topics.make_model(
+        *atac_adata.shape,
+        feature_type = 'accessibility',
+        endogenous_key='endogenous_peaks', # which peaks are used by the encoder network
+        atac_encoder=atac_encoder
+    )
+    
+    model.save(model_path)
+    
     return model
 
 def set_model_learning_parameters(
     model: Union[ExpressionModel, AccessibilityModel], 
-    adata: anndata.AnnData
+    adata: Union[anndata.AnnData, str],
+    fig_dir: str = 'figures'
     ) -> Tuple[Union[ExpressionModel, AccessibilityModel], int]:
     
     model_type = get_model_modality(model)
     assert model_type == "accessibility" or "expression"
 
     print("Running the learning rate test:")
-    min_lr, max_lr = rna_expr_model.get_learning_rate_bounds(adata)
+    min_lr, max_lr = model.get_learning_rate_bounds(adata)
+    
+    ax = model.plot_learning_rate_bounds()
+
+    fig = ax.get_figure()
+
+    if isinstance(fig, plt.Figure):
+        fig.savefig(
+        os.path.join(fig_dir, f"{model_type}_learning_rate_bounds.png"),
+        dpi=200,
+        bbox_inches='tight'
+    )
 
     print(f"Setting min learning rate to {min_lr} and max learning rate to {max_lr}")
-    rna_expr_model.set_learning_rates(min_lr, max_lr) # for larger datasets, the default of 1e-3, 0.1 usually works well.
+    model.set_learning_rates(min_lr, max_lr) # for larger datasets, the default of 1e-3, 0.1 usually works well.
 
-    topic_contributions = mira.topics.gradient_tune(rna_expr_model, adata)
+    topic_contributions = mira.topics.gradient_tune(model, adata)
 
     sig_topic_contributions = [x for x in topic_contributions if x > 0.05]
 
@@ -177,18 +216,3 @@ def create_and_fit_bayesian_tuner_to_data(
     model.save(f'{model_save_path}.pth')
     
     return model
-
-rna_expr_model = load_or_create_mira_expression_topic_model(rna_adata)
-rna_expr_model, num_sig_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
-
-trained_rna_model = create_and_fit_bayesian_tuner_to_data(
-    rna_expr_model, 
-    rna_adata, 
-    num_sig_topics, 
-    tuner_save_name="ds011_rna/0",
-    model_save_path="mira-datasets/ds011_rna_model",
-    fig_dir="figures",
-    plot_loss=True,
-    plot_pareto=True
-    )
-

@@ -1,8 +1,8 @@
-import mira
+import mira # type: ignore[import-untyped]
 
 import os
-import anndata
-import scanpy as sc
+import anndata # type: ignore[import-untyped]
+import scanpy as sc # type: ignore[import-untyped]
 import numpy as np
 import matplotlib.pyplot as plt
 plt.rcParams.update({'font.size': 14})

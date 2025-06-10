@@ -16,13 +16,13 @@ source activate mira-env
 
 cd "/gpfs/Home/esm5360/MIRA/"
 
-echo "Running data preprocessing"
-python3 Step010.preprocess_data.py
+# echo "Running data preprocessing"
+# python3 Step010.preprocess_data.py
 
-echo "Running mira_topic_modeling.py"
-python3 Step020.mira_topic_modeling.py
+# echo "Running mira_topic_modeling.py"
+# python3 Step020.mira_rna_topic_modeling.py
 
 echo "Running analysis of MIRA embeddings"
-python3 Step030.mira_prediction_analysis.py
+python3 src/Step040.mira_atlas_level_integration.py
 
 echo "DONE"

@@ -1,7 +1,8 @@
-import scanpy as sc
-import mira
-import anndata
+import scanpy as sc # type: ignore[import-untyped]
+import mira # type: ignore[import-untyped]
+import anndata # type: ignore[import-untyped]
 import matplotlib.pyplot as plt
+import numpy as np
 
 data = anndata.read_h5ad("mira-datasets/data.h5ad")
 
