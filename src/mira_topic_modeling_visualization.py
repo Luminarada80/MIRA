@@ -3,6 +3,9 @@ import mira # type: ignore[import-untyped]
 import anndata # type: ignore[import-untyped]
 import matplotlib.pyplot as plt
 import numpy as np
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 data = anndata.read_h5ad("mira-datasets/data.h5ad")
 

@@ -5,11 +5,11 @@ import anndata  # type: ignore[import-untyped]
 import matplotlib.pyplot as plt
 import mira  # type: ignore[import-untyped]
 import torch
-from mira.topic_model.modality_mixins.accessibility_model import \
-    AccessibilityModel  # type: ignore[import-untyped]
-from mira.topic_model.modality_mixins.expression_model import \
-    ExpressionModel  # type: ignore[import-untyped]
+from mira.topic_model.modality_mixins.accessibility_model import AccessibilityModel  # type: ignore[import-untyped]
+from mira.topic_model.modality_mixins.expression_model import ExpressionModel  # type: ignore[import-untyped]
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 def get_model_modality(model) -> str:
     """Return 'expression' or 'accessibility' based on model type."""
@@ -23,15 +23,15 @@ def get_model_modality(model) -> str:
 
 def load_or_create_mira_expression_topic_model(
     rna_adata: anndata.AnnData, 
-    model_path: str = None
+    model_path: Union[None, str] = None
     ) -> ExpressionModel:
     
     try:
         return mira.topic_model.load_model(model_path)
     except ValueError:
-        print(f"No MIRA model.pth file found at path {model_path}, creating...")
+        logging.info(f"No MIRA model.pth file found at path {model_path}, creating...")
 
-    print("Creating MIRA expression model from RNAseq AnnData")
+    logging.info("Creating MIRA expression model from RNAseq AnnData")
     model: ExpressionModel = mira.topics.make_model(
         rna_adata.n_obs, rna_adata.n_vars,
         feature_type = 'expression',
@@ -39,26 +39,33 @@ def load_or_create_mira_expression_topic_model(
         counts_layer='counts',
         )
     
-    model.save(model_path)
+    if model_path:
+        try:
+            model.save(model_path)
+        except OSError:
+            logging.error(f"Model save path {model_path} is not valid, model ill not be saved!")
+    else:
+        logging.warning(f"Warning: model_path variable is {model_path}, the model wont be saved at this point. \
+            The model will be saved after topic training")
     
     return model
 
 def load_or_create_mira_accessibility_topic_model(
     atac_adata: anndata.AnnData,
-    model_path: str = None
+    model_path: Union[None,str] = None
     ) -> AccessibilityModel:
     
     try:
         return mira.topic_model.load_model(model_path)
     except ValueError:
-        print(f"No MIRA model.pth file found at path {model_path}, creating...")
+        logging.info(f"No MIRA model.pth file found at path {model_path}, creating...")
     
     if torch.cuda.is_available():
         atac_encoder = "DAN"
     else:
         atac_encoder = "light"
 
-    print("Creating MIRA accessibility model from ATACseq AnnData")
+    logging.info("Creating MIRA accessibility model from ATACseq AnnData")
     model: AccessibilityModel = mira.topics.make_model(
         *atac_adata.shape,
         feature_type = 'accessibility',
@@ -66,7 +73,14 @@ def load_or_create_mira_accessibility_topic_model(
         atac_encoder=atac_encoder
     )
     
-    model.save(model_path)
+    if model_path:
+        try:
+            model.save(model_path)
+        except OSError:
+            logging.error(f"Model save path {model_path} is not valid, model ill not be saved!")
+    else:
+        logging.warning(f"Warning: model_path variable is {model_path}, the model will not be saved at this point. \
+            Next save point is after topic training")
     
     return model
 
@@ -79,21 +93,21 @@ def set_model_learning_parameters(
     model_type = get_model_modality(model)
     assert model_type == "accessibility" or "expression"
 
-    print("Running the learning rate test:")
+    logging.info("Running the learning rate test:")
     min_lr, max_lr = model.get_learning_rate_bounds(adata)
     
-    ax = model.plot_learning_rate_bounds()
+    learn_rate_ax = model.plot_learning_rate_bounds()
 
-    fig = ax.get_figure()
+    learn_rate_fig = learn_rate_ax.get_figure()
 
-    if isinstance(fig, plt.Figure):
-        fig.savefig(
+    if isinstance(learn_rate_fig, plt.Figure):
+        learn_rate_fig.savefig(
         os.path.join(fig_dir, f"{model_type}_learning_rate_bounds.png"),
         dpi=200,
         bbox_inches='tight'
     )
 
-    print(f"Setting min learning rate to {min_lr} and max learning rate to {max_lr}")
+    logging.info(f"Setting min learning rate to {min_lr} and max learning rate to {max_lr}")
     model.set_learning_rates(min_lr, max_lr) # for larger datasets, the default of 1e-3, 0.1 usually works well.
 
     topic_contributions = mira.topics.gradient_tune(model, adata)
@@ -102,12 +116,12 @@ def set_model_learning_parameters(
 
     num_sig_topics: int = len(sig_topic_contributions)
     
-    ax : plt.Axes = mira.pl.plot_topic_contributions(topic_contributions, num_sig_topics)
+    topic_contrib_ax: plt.Axes = mira.pl.plot_topic_contributions(topic_contributions, num_sig_topics)
     
-    fig = ax.get_figure()
+    topic_contrib_fig = topic_contrib_ax.get_figure()
     
-    if isinstance(fig, plt.Figure):
-        fig.savefig(
+    if isinstance(topic_contrib_fig, plt.Figure):
+        topic_contrib_fig.savefig(
         os.path.join(fig_dir, f"{model_type}_topic_contributions.png"),
         dpi=200,
         bbox_inches='tight'
@@ -167,18 +181,19 @@ def create_and_fit_bayesian_tuner_to_data(
             Currently set to {n_jobs}"
             )
         
-    print("Creating Bayesian tuner object")
+    logging.info("Creating Bayesian tuner object")
     tuner = mira.topics.BayesianTuner(
             model = model,
             n_jobs=n_jobs,
             save_name = tuner_save_name,
+            log_steps=False
             #### IMPORTANT
             min_topics = max(3, num_sig_topics - 5), max_topics = min(50, num_sig_topics + 20), # tailor for your dataset!!!!
             #### See "Notes on min_topics, max_topics" above
             #storage = mira.topics.Redis() # if using REDIS backend for more (>5) processes
     )
 
-    print("Fitting the data to the tuner")
+    logging.info("Fitting the data to the tuner")
     tuner.fit(adata)
 
     if plot_loss:
@@ -208,10 +223,13 @@ def create_and_fit_bayesian_tuner_to_data(
                 bbox_inches='tight'
                 )
 
-    print("Finding best model")
+    logging.info("Finding best model")
     model = tuner.fetch_best_weights()
 
-    print(f"Saving best model to '{model_save_path}'")
-    model.save(f'{model_save_path}')
+    logging.info(f"Saving best model to '{model_save_path}'")
+    try:
+        model.save(model_save_path)
+    except OSError:
+        logging.error(f"Model save path {model_save_path} is not valid, model will not be saved!")
     
     return model

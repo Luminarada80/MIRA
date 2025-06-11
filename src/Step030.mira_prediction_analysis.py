@@ -5,6 +5,10 @@ import anndata # type: ignore[import-untyped]
 import scanpy as sc # type: ignore[import-untyped]
 import numpy as np
 import matplotlib.pyplot as plt
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+
 plt.rcParams.update({'font.size': 14})
 
 fig_dir = "/gpfs/Home/esm5360/MIRA/figures"

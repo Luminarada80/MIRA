@@ -4,9 +4,12 @@ import anndata  # type: ignore[import-untyped]
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
-import scanpy as sc
+import scanpy as sc  # type: ignore[import-untyped]
 from scipy.sparse import csr_matrix
 from typing import Union
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 def anndata_from_dataframe(df, id_col_name):
     # 1) Validate input
@@ -66,12 +69,12 @@ def atac_data_preprocessing(
         atac_adata (anndata.AnnData): Filtered ATAC AnnData object
     """
     
-    print("    - Filtering out very rare peaks")
+    logging.info("    - Filtering out very rare peaks")
     sc.pp.filter_genes(atac_adata, min_cells = filter_gene_min_cells)
 
     atac_adata = atac_adata[barcodes]
     
-    print("    - Calculating QC metrics")
+    logging.info("    - Calculating QC metrics")
     sc.pp.calculate_qc_metrics(atac_adata, inplace=True, log1p=False)
 
     if plot_genes_by_counts:
@@ -87,23 +90,26 @@ def atac_data_preprocessing(
         
         fig = ax.get_figure()
         
+        qc_fig_path = os.path.join(fig_dir, "QC_figs")
+        os.makedirs(qc_fig_path, exist_ok=True)
+        
         if isinstance(fig, plt.Figure):
             fig.savefig(
-                os.path.join(fig_dir, "QC_figs", "accessibility_genes_by_counts.png"),
+                os.path.join(qc_fig_path, "accessibility_genes_by_counts.png"),
                 dpi=200,
                 bbox_inches="tight"
             )
 
-    print(f"    - Filtering cells by {min_genes_per_cell} min genes per cell")
+    logging.info(f"    - Filtering cells by {min_genes_per_cell} min genes per cell")
     sc.pp.filter_cells(atac_adata, min_genes=min_genes_per_cell)
 
-    print(f"    - Subsampling to 1e5 peaks per cell")
+    logging.info(f"    - Subsampling to 1e5 peaks per cell")
     # If needed, reduce the size of the dataset by subsampling
     np.random.seed(0)
     atac_adata.var['endogenous_peaks'] = np.random.rand(atac_adata.shape[1]) <= min(1e5/atac_adata.shape[1], 1)
     
     if h5ad_save_path:
-        print(f"    - Writing h5ad file to {os.path.basename(h5ad_save_path)}")
+        logging.info(f"    - Writing h5ad file to {os.path.basename(h5ad_save_path)}")
         atac_adata.write_h5ad(h5ad_save_path)
     
     return atac_adata
@@ -134,38 +140,37 @@ def rna_data_preprocessing(
         rna_adata (anndata.AnnData): Filtered RNA AnnData object
     """
     
-    print("    - Filtering out very rare genes")
+    logging.info("    - Filtering out very rare genes")
     sc.pp.filter_genes(rna_adata, min_cells=min_cells_per_gene)
     rawdata = rna_adata.X.copy()
 
-    print(f"    - Normalizing to a read depth of {target_read_depth}")
+    logging.info(f"    - Normalizing to a read depth of {target_read_depth}")
     sc.pp.normalize_total(rna_adata, target_sum=target_read_depth)
 
-    print("    - Logarithmizing the data")
+    logging.info("    - Logarithmizing the data")
     sc.pp.log1p(rna_adata)
 
-    print(f"    - Filtering for highly variable genes with dispersion > {min_gene_disp}")
+    logging.info(f"    - Filtering for highly variable genes with dispersion > {min_gene_disp}")
     sc.pp.highly_variable_genes(rna_adata, min_disp = min_gene_disp)
 
     rna_adata.layers['counts'] = rawdata
 
     if h5ad_save_path:
-        print(f"    - Writing h5ad file to {os.path.basename(h5ad_save_path)}")
+        logging.info(f"    - Writing h5ad file to {os.path.basename(h5ad_save_path)}")
         rna_adata.write_h5ad(h5ad_save_path)
     
     return rna_adata
 
-
 def load_and_process_rna_data(rna_data_path, rna_h5ad_save_path):
     
     if not os.path.isfile(rna_h5ad_save_path):
-        print("  - Reading RNAseq raw data parquet file")
+        logging.info("  - Reading RNAseq raw data parquet file")
         rna_data = pd.read_parquet(rna_data_path, engine="pyarrow")
 
-        print("  - Converting DataFrame to AnnData object")
+        logging.info("  - Converting DataFrame to AnnData object")
         rna_adata = anndata_from_dataframe(rna_data, "gene_id")
 
-        print("  - Running RNA preprocessing")
+        logging.info("  - Running RNA preprocessing")
         rna_adata = rna_data_preprocessing(
             rna_adata=rna_adata,
             min_cells_per_gene=15,
@@ -182,13 +187,13 @@ def load_and_process_rna_data(rna_data_path, rna_h5ad_save_path):
 def load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, barcodes, fig_dir):
     
     if not os.path.isfile(atac_h5ad_save_path):
-        print("  - Reading ATACseq raw data parquet file")
+        logging.info("  - Reading ATACseq raw data parquet file")
         atac_data = pd.read_parquet(atac_data_path, engine="pyarrow")
 
-        print("  - Converting DataFrame to AnnData object")
+        logging.info("  - Converting DataFrame to AnnData object")
         atac_adata = anndata_from_dataframe(atac_data, "peak_id")
 
-        print("  - Running ATAC preprocessing")
+        logging.info("  - Running ATAC preprocessing")
         atac_adata = atac_data_preprocessing(
             atac_adata,
             barcodes,
