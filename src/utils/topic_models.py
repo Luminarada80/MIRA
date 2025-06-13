@@ -20,7 +20,6 @@ def get_model_modality(model) -> str:
     else:
         raise TypeError(f"Model of type '{type(model)}' is not a dirichlet expression or accessibility object")
 
-
 def load_or_create_mira_expression_topic_model(
     rna_adata: anndata.AnnData, 
     model_path: Union[None, str] = None
@@ -28,9 +27,9 @@ def load_or_create_mira_expression_topic_model(
     
     try:
         return mira.topic_model.load_model(model_path)
-    except ValueError:
+    except FileNotFoundError:
         logging.info(f"No MIRA model.pth file found at path {model_path}, creating...")
-
+    
     logging.info("Creating MIRA expression model from RNAseq AnnData")
     model: ExpressionModel = mira.topics.make_model(
         rna_adata.n_obs, rna_adata.n_vars,
@@ -38,15 +37,6 @@ def load_or_create_mira_expression_topic_model(
         highly_variable_key='highly_variable',
         counts_layer='counts',
         )
-    
-    if model_path:
-        try:
-            model.save(model_path)
-        except OSError:
-            logging.error(f"Model save path {model_path} is not valid, model ill not be saved!")
-    else:
-        logging.warning(f"Warning: model_path variable is {model_path}, the model wont be saved at this point. \
-            The model will be saved after topic training")
     
     return model
 
@@ -57,7 +47,7 @@ def load_or_create_mira_accessibility_topic_model(
     
     try:
         return mira.topic_model.load_model(model_path)
-    except ValueError:
+    except FileNotFoundError:
         logging.info(f"No MIRA model.pth file found at path {model_path}, creating...")
     
     if torch.cuda.is_available():
@@ -73,26 +63,20 @@ def load_or_create_mira_accessibility_topic_model(
         atac_encoder=atac_encoder
     )
     
-    if model_path:
-        try:
-            model.save(model_path)
-        except OSError:
-            logging.error(f"Model save path {model_path} is not valid, model ill not be saved!")
-    else:
-        logging.warning(f"Warning: model_path variable is {model_path}, the model will not be saved at this point. \
-            Next save point is after topic training")
-    
     return model
 
 def set_model_learning_parameters(
     model: Union[ExpressionModel, AccessibilityModel], 
     adata: Union[anndata.AnnData, str],
     fig_dir: str = 'figures'
-    ) -> Tuple[Union[ExpressionModel, AccessibilityModel], int]:
+    ) -> Tuple[Union[ExpressionModel, AccessibilityModel], list[int]]:
     
     model_type = get_model_modality(model)
     assert model_type == "accessibility" or "expression"
 
+    model_fig_dir = os.path.join(fig_dir, "model_figs")
+    os.makedirs(model_fig_dir, exist_ok=True)
+    
     logging.info("Running the learning rate test:")
     min_lr, max_lr = model.get_learning_rate_bounds(adata)
     
@@ -102,7 +86,7 @@ def set_model_learning_parameters(
 
     if isinstance(learn_rate_fig, plt.Figure):
         learn_rate_fig.savefig(
-        os.path.join(fig_dir, f"{model_type}_learning_rate_bounds.png"),
+        os.path.join(model_fig_dir, f"{model_type}_learning_rate_bounds.png"),
         dpi=200,
         bbox_inches='tight'
     )
@@ -122,17 +106,17 @@ def set_model_learning_parameters(
     
     if isinstance(topic_contrib_fig, plt.Figure):
         topic_contrib_fig.savefig(
-        os.path.join(fig_dir, f"{model_type}_topic_contributions.png"),
+        os.path.join(model_fig_dir, f"{model_type}_topic_contributions.png"),
         dpi=200,
         bbox_inches='tight'
     )
 
-    return model, num_sig_topics
+    return model, sig_topic_contributions
 
 def create_and_fit_bayesian_tuner_to_data(
     model: Union[ExpressionModel, AccessibilityModel], 
-    adata: anndata.AnnData, 
-    num_sig_topics: int, 
+    adata: Union[anndata.AnnData, Tuple[str, str]], 
+    sig_topic_contributions: list[int], 
     tuner_save_name: str,
     model_save_path: str,
     n_jobs: int = 5,
@@ -148,8 +132,10 @@ def create_and_fit_bayesian_tuner_to_data(
     Args:
         model (ExpressionModel | AccessibilityModel): 
             MIRA model built from the AnnData object.
-        adata (anndata.AnnData): 
-            AnnData expression of accessility object used to build the model.
+        adata (anndata.AnnData | Tuple[str, str]): 
+            Either: 1) AnnData expression or accessility object or 2) If using train / test data cached on disk,
+            pass a Tuple of file paths where the first path specifies the training split and the second specifies
+            the testing split.
         num_sig_topics (int): 
             Number of topics used to represent the data. Build using the `set_model_learning_parameters()` 
             function.
@@ -181,22 +167,30 @@ def create_and_fit_bayesian_tuner_to_data(
             Currently set to {n_jobs}"
             )
         
-    logging.info("Creating Bayesian tuner object")
+    max_sig_topics = max(sig_topic_contributions)
+    logging.info(f"  - Setting the min and max number of topics. CHECK TOPIC CONTRIBUTIONS FIGURE TO VERIFY")
+    logging.info(f"      Minimum = {max(3, max_sig_topics - 5)}")
+    logging.info(f"      Maximum = {min(50, max_sig_topics + 20)}")
+        
+    logging.info("  - Creating Bayesian tuner object")
     tuner = mira.topics.BayesianTuner(
             model = model,
             n_jobs=n_jobs,
             save_name = tuner_save_name,
-            log_steps=False
             #### IMPORTANT
-            min_topics = max(3, num_sig_topics - 5), max_topics = min(50, num_sig_topics + 20), # tailor for your dataset!!!!
+            min_topics = max(3, max_sig_topics - 5), max_topics = min(50, max_sig_topics + 20), # tailor for your dataset!!!!
             #### See "Notes on min_topics, max_topics" above
             #storage = mira.topics.Redis() # if using REDIS backend for more (>5) processes
     )
 
-    logging.info("Fitting the data to the tuner")
+    logging.info("  - Fitting the data to the tuner")
     tuner.fit(adata)
+    
+    tuner_dir = os.path.join(fig_dir, "tuner_train_figs")
+    os.makedirs(tuner_dir, exist_ok=True)
 
     if plot_loss:
+        logging.info("  - Plotting the loss values over the course of training")
         loss_ax = tuner.plot_intermediate_values(palette='Spectral_r',
                                         log_hue=True, figsize=(7,3))
         # intermed_val_plt_ax.set(ylim = (7e2, 7.7e2))
@@ -205,12 +199,13 @@ def create_and_fit_bayesian_tuner_to_data(
 
         if isinstance(loss_fig, plt.Figure):
             loss_fig.savefig(
-                os.path.join(fig_dir, f"{model_type}_tuner_intermediate_loss_values.png"), 
+                os.path.join(tuner_dir, f"{model_type}_tuner_intermediate_loss_values.png"), 
                 dpi=200,
                 bbox_inches='tight'
                 )
 
     if plot_pareto:
+        logging.info("  - Plotting the pareto front, check for convex shaped distribution")
         pareto_plt_ax = tuner.plot_pareto_front(include_pruned_trials=False, label_pareto_front=True,
                             figsize = (8,8))
 
@@ -218,15 +213,15 @@ def create_and_fit_bayesian_tuner_to_data(
 
         if isinstance(pareto_fig, plt.Figure):
             pareto_fig.savefig(
-                os.path.join(fig_dir, f"{model_type}_check_pareto_front_convex_losses.png"), 
+                os.path.join(tuner_dir, f"{model_type}_check_pareto_front_convex_losses.png"), 
                 dpi=200,
                 bbox_inches='tight'
                 )
 
-    logging.info("Finding best model")
+    logging.info("  - Finding best model")
     model = tuner.fetch_best_weights()
 
-    logging.info(f"Saving best model to '{model_save_path}'")
+    logging.info(f"  - Saving best model to '{model_save_path}'")
     try:
         model.save(model_save_path)
     except OSError:

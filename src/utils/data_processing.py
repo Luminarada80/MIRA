@@ -69,15 +69,16 @@ def atac_data_preprocessing(
         atac_adata (anndata.AnnData): Filtered ATAC AnnData object
     """
     
-    logging.info("    - Filtering out very rare peaks")
+    logging.info("    (1/4) Filtering out very rare peaks")
     sc.pp.filter_genes(atac_adata, min_cells = filter_gene_min_cells)
 
     atac_adata = atac_adata[barcodes]
     
-    logging.info("    - Calculating QC metrics")
+    logging.info("    (2/4) Calculating QC metrics")
     sc.pp.calculate_qc_metrics(atac_adata, inplace=True, log1p=False)
-
+    
     if plot_genes_by_counts:
+        logging.info("      - Plotting genes by counts vs total counts")
         ax: plt.Axes = sc.pl.scatter(atac_adata,
                     x = 'n_genes_by_counts',
                     y = 'total_counts',
@@ -100,16 +101,16 @@ def atac_data_preprocessing(
                 bbox_inches="tight"
             )
 
-    logging.info(f"    - Filtering cells by {min_genes_per_cell} min genes per cell")
+    logging.info(f"    (3/4) Filtering cells by {min_genes_per_cell} min genes per cell")
     sc.pp.filter_cells(atac_adata, min_genes=min_genes_per_cell)
 
-    logging.info(f"    - Subsampling to 1e5 peaks per cell")
+    logging.info(f"    (4/4) Subsampling to 1e5 peaks per cell")
     # If needed, reduce the size of the dataset by subsampling
     np.random.seed(0)
     atac_adata.var['endogenous_peaks'] = np.random.rand(atac_adata.shape[1]) <= min(1e5/atac_adata.shape[1], 1)
     
     if h5ad_save_path:
-        logging.info(f"    - Writing h5ad file to {os.path.basename(h5ad_save_path)}")
+        logging.info(f"    Writing h5ad file to {os.path.basename(h5ad_save_path)}")
         atac_adata.write_h5ad(h5ad_save_path)
     
     return atac_adata
@@ -140,23 +141,23 @@ def rna_data_preprocessing(
         rna_adata (anndata.AnnData): Filtered RNA AnnData object
     """
     
-    logging.info("    - Filtering out very rare genes")
+    logging.info("    (1/4) Filtering out very rare genes")
     sc.pp.filter_genes(rna_adata, min_cells=min_cells_per_gene)
     rawdata = rna_adata.X.copy()
 
-    logging.info(f"    - Normalizing to a read depth of {target_read_depth}")
+    logging.info(f"    (2/4) Normalizing to a read depth of {target_read_depth}")
     sc.pp.normalize_total(rna_adata, target_sum=target_read_depth)
 
-    logging.info("    - Logarithmizing the data")
+    logging.info("    (3/4) Logarithmizing the data")
     sc.pp.log1p(rna_adata)
 
-    logging.info(f"    - Filtering for highly variable genes with dispersion > {min_gene_disp}")
+    logging.info(f"    (4/4) Filtering for highly variable genes with dispersion > {min_gene_disp}")
     sc.pp.highly_variable_genes(rna_adata, min_disp = min_gene_disp)
 
     rna_adata.layers['counts'] = rawdata
 
     if h5ad_save_path:
-        logging.info(f"    - Writing h5ad file to {os.path.basename(h5ad_save_path)}")
+        logging.info(f"    Writing h5ad file to {os.path.basename(h5ad_save_path)}")
         rna_adata.write_h5ad(h5ad_save_path)
     
     return rna_adata
@@ -182,6 +183,7 @@ def load_and_process_rna_data(rna_data_path, rna_h5ad_save_path):
         return rna_adata
         
     else:
+        logging.info("  - RNA h5ad file found, loading")
         return anndata.read_h5ad(rna_h5ad_save_path)
 
 def load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, barcodes, fig_dir):
