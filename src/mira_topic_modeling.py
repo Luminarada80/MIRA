@@ -25,7 +25,7 @@ BASE_DIR = "/gpfs/Home/esm5360/MIRA/"
 FIG_DIR = os.path.join(BASE_DIR, "figures")
 TUNER_DIR = os.path.join(BASE_DIR, "tuners")
 DATASET_DIR = os.path.join(BASE_DIR, "mira-datasets")
-DATASET_NAME = "ds011"
+DATASET_NAME = "ds011_full"
 
 os.makedirs(FIG_DIR, exist_ok=True)
 os.makedirs(TUNER_DIR, exist_ok=True)
@@ -33,18 +33,18 @@ os.makedirs(DATASET_DIR, exist_ok=True)
 
 input_data_dir = "/gpfs/Labs/Uzun/SCRIPTS/PROJECTS/2024.SINGLE_CELL_GRN_INFERENCE.MOELLER/input/DS011_mESC/DS011_mESC_sample1/"
 
-atac_data_path = os.path.join(input_data_dir, "DS011_mESC_ATAC_processed.parquet")
-rna_data_path = os.path.join(input_data_dir, "DS011_mESC_RNA_processed.parquet")
+atac_data_path = os.path.join(input_data_dir, "DS011_mESC_ATAC.parquet")
+rna_data_path = os.path.join(input_data_dir, "DS011_mESC_RNA.parquet")
 
-atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data.h5ad")
-rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data.h5ad")
+atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_full.h5ad")
+rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5ad")
 
 def create_atac_topic_model(atac_adata):
     
     model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_model.pth")
-    tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_atac")
+    tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_atacl")
     
-    training_cache = os.path.join(DATASET_DIR, "ds011_training")
+    training_cache = os.path.join(DATASET_DIR, f"{DATASET_NAME}_training")
     
     logging.info("Loading or creating the MIRA ATAC expression topic model")
     model = load_or_create_mira_accessibility_topic_model(atac_adata, model_save_path)
