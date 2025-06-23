@@ -2,6 +2,9 @@ import os
 from typing import Tuple, Union
 
 import anndata  # type: ignore[import-untyped]
+from kneed import KneeLocator # type: ignore[import-untyped]
+import math
+import numpy as np
 import matplotlib.pyplot as plt
 import mira  # type: ignore[import-untyped]
 import torch
@@ -69,7 +72,7 @@ def set_model_learning_parameters(
     model: Union[ExpressionModel, AccessibilityModel], 
     adata: Union[anndata.AnnData, str],
     fig_dir: str = 'figures'
-    ) -> Tuple[Union[ExpressionModel, AccessibilityModel], list[int]]:
+    ) -> Tuple[Union[ExpressionModel, AccessibilityModel], int]:
     
     model_type = get_model_modality(model)
     assert model_type == "accessibility" or "expression"
@@ -100,7 +103,33 @@ def set_model_learning_parameters(
 
     num_sig_topics: int = len(sig_topic_contributions)
     
-    topic_contrib_ax: plt.Axes = mira.pl.plot_topic_contributions(topic_contributions, num_sig_topics)
+    log_contributions = np.log10(np.array(topic_contributions) + 1e-12)  # add epsilon to avoid log(0)
+
+    kneedle = KneeLocator(
+        np.arange(len(log_contributions)), 
+        log_contributions,
+        curve="convex",
+        direction="decreasing",
+        online=False
+    )
+    num_topics = math.ceil(kneedle.elbow or 2)
+    
+    elbow_plot = plt.figure(figsize=(8, 5))
+    plt.title("Topic Contributions")
+    plt.scatter(np.arange(len(log_contributions)), log_contributions)
+    plt.yscale("log")
+    plt.axhline(num_topics, xmin=0, xmax=len(log_contributions), linestyle="--")
+    
+    if isinstance(elbow_plot, plt.Figure):
+        elbow_plot.savefig(
+            os.path.join(model_fig_dir, f"{model_type}_topic_elbow_selection.png"),
+            dpi=200,
+            bbox_inches='tight',
+        )
+    
+    logging.info(f'Elbow located at {num_topics}')
+
+    topic_contrib_ax: plt.Axes = mira.pl.plot_topic_contributions(topic_contributions, num_topics)
     
     topic_contrib_fig = topic_contrib_ax.get_figure()
     
@@ -111,12 +140,12 @@ def set_model_learning_parameters(
         bbox_inches='tight'
     )
 
-    return model, sig_topic_contributions
+    return model, num_topics
 
 def create_and_fit_bayesian_tuner_to_data(
     model: Union[ExpressionModel, AccessibilityModel], 
     adata: Union[anndata.AnnData, Tuple[str, str]], 
-    sig_topic_contributions: list[int], 
+    num_topics: int, 
     tuner_save_name: str,
     model_save_path: str,
     n_jobs: int = 5,
@@ -136,7 +165,7 @@ def create_and_fit_bayesian_tuner_to_data(
             Either: 1) AnnData expression or accessility object or 2) If using train / test data cached on disk,
             pass a Tuple of file paths where the first path specifies the training split and the second specifies
             the testing split.
-        num_sig_topics (int): 
+        num_topics (int): 
             Number of topics used to represent the data. Build using the `set_model_learning_parameters()` 
             function.
         tuner_save_name (str): 
@@ -167,10 +196,9 @@ def create_and_fit_bayesian_tuner_to_data(
             Currently set to {n_jobs}"
             )
         
-    max_sig_topics = max(sig_topic_contributions)
     logging.info(f"  - Setting the min and max number of topics. CHECK TOPIC CONTRIBUTIONS FIGURE TO VERIFY")
-    logging.info(f"      Minimum = {max(3, max_sig_topics - 5)}")
-    logging.info(f"      Maximum = {min(50, max_sig_topics + 20)}")
+    logging.info(f"      Minimum = {max(1, num_topics - 5)}")
+    logging.info(f"      Maximum = {min(50, num_topics + 5)}")
         
     logging.info("  - Creating Bayesian tuner object")
     tuner = mira.topics.BayesianTuner(
@@ -178,13 +206,19 @@ def create_and_fit_bayesian_tuner_to_data(
             n_jobs=n_jobs,
             save_name = tuner_save_name,
             #### IMPORTANT
-            min_topics = max(3, max_sig_topics - 5), max_topics = min(50, max_sig_topics + 20), # tailor for your dataset!!!!
+            min_topics = max(1, num_topics - 5), 
+            max_topics = min(50, num_topics + 5), # tailor for your dataset!!!!
             #### See "Notes on min_topics, max_topics" above
             #storage = mira.topics.Redis() # if using REDIS backend for more (>5) processes
     )
 
     logging.info("  - Fitting the data to the tuner")
-    tuner.fit(adata)
+    if isinstance(adata, tuple) and len(adata) == 2:
+        logging.info(f"      Using training/testing cache: {adata[0]} / {adata[1]}")
+        tuner.fit(adata[0], adata[1])
+    else:
+        logging.info(f"      Using in-memory AnnData object")
+        tuner.fit(adata)
     
     tuner_dir = os.path.join(fig_dir, "tuner_train_figs")
     os.makedirs(tuner_dir, exist_ok=True)
