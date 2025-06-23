@@ -1,0 +1,10 @@
+.*
+figures/*
+LOGS/*
+mira-datasets/*
+models/*
+runs/*
+tuners/
+ds011_rna
+*.pyc
+*.db
