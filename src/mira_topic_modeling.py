@@ -55,11 +55,13 @@ def create_atac_topic_model(atac_adata):
     train, test = model.train_test_split(atac_adata)
     
     logging.info("Writing the train / test splits to the training data cache")
-    if not 'atac_train' in os.listdir(training_cache):
-        model.write_ondisk_dataset(train, dirname=os.path.join(training_cache, 'atac_train'))
-        
-    if not 'atac_test' in os.listdir(training_cache):
-        model.write_ondisk_dataset(test, dirname=os.path.join(training_cache, 'atac_test'))
+    train_dir = os.path.join(training_cache, 'atac_train')
+    test_dir = os.path.join(training_cache, 'atac_test')
+
+    if not os.path.exists(train_dir):
+        model.write_ondisk_dataset(train, dirname=train_dir)
+    if not os.path.exists(test_dir):
+        model.write_ondisk_dataset(test, dirname=test_dir)
 
     # logging.info("Setting the topic model learning parameters")
     # model, num_topics = set_model_learning_parameters(
@@ -101,9 +103,7 @@ def create_rna_topic_model(rna_adata):
     rna_expr_model = load_or_create_mira_expression_topic_model(rna_adata, model_save_path)
     
     logging.info("Setting the topic model learning parameters")
-    # rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
-    
-
+    rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
 
     logging.info("Creating and fitting the Bayesian tuner to the scRNA-seq expression data")
     trained_rna_model = create_and_fit_bayesian_tuner_to_data(
@@ -119,7 +119,7 @@ def create_rna_topic_model(rna_adata):
         )
     logging.info("Done!\n")
     
-    return rna_adata, trained_rna_model, barcodes
+    return rna_adata, trained_rna_model
 
 assert torch.cuda.is_available()
 
@@ -134,4 +134,4 @@ atac_adata = load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, bar
 # rna_adata, trained_rna_model, barcodes = create_rna_topic_model(rna_adata)
 atac_adata, trained_atac_model = create_atac_topic_model(atac_adata)
 
-trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)
+# trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)
