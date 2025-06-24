@@ -4,7 +4,7 @@
 #SBATCH --output=LOGS/mira_topic_training.log
 #SBATCH --error=LOGS/mira_topic_training.err
 #SBATCH -p gpu
-#SBATCH -c 1
+#SBATCH -c 2
 #SBATCH --mem=128G
 #SBATCH --gres=gpu:1
 

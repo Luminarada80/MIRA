@@ -26,7 +26,7 @@ FIG_DIR = os.path.join(BASE_DIR, "figures")
 TUNER_DIR = os.path.join(BASE_DIR, "tuners")
 DATASET_DIR = os.path.join(BASE_DIR, "mira-datasets")
 DATASET_NAME = "ds011_full"
-NUM_CPU = 1
+NUM_CPU = 2
 
 os.makedirs(FIG_DIR, exist_ok=True)
 os.makedirs(TUNER_DIR, exist_ok=True)
