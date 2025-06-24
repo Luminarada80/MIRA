@@ -215,6 +215,7 @@ def create_and_fit_bayesian_tuner_to_data(
     logging.info("  - Fitting the data to the tuner")
     if isinstance(adata, tuple) and len(adata) == 2:
         logging.info(f"      Using training/testing cache: {adata[0]} / {adata[1]}")
+        tuner.purge()
         tuner.fit(adata[0], adata[1])
         
     else:

@@ -26,6 +26,7 @@ FIG_DIR = os.path.join(BASE_DIR, "figures")
 TUNER_DIR = os.path.join(BASE_DIR, "tuners")
 DATASET_DIR = os.path.join(BASE_DIR, "mira-datasets")
 DATASET_NAME = "ds011_full"
+NUM_CPU = 1
 
 os.makedirs(FIG_DIR, exist_ok=True)
 os.makedirs(TUNER_DIR, exist_ok=True)
@@ -60,21 +61,27 @@ def create_atac_topic_model(atac_adata):
     if not 'atac_test' in os.listdir(training_cache):
         model.write_ondisk_dataset(test, dirname=os.path.join(training_cache, 'atac_test'))
 
-    logging.info("Setting the topic model learning parameters")
-    model, num_topics = set_model_learning_parameters(
-        model=model,
-        adata=os.path.join(training_cache, 'atac_train'),
-        fig_dir=FIG_DIR
-    )
+    # logging.info("Setting the topic model learning parameters")
+    # model, num_topics = set_model_learning_parameters(
+    #     model=model,
+    #     adata=os.path.join(training_cache, 'atac_train'),
+    #     fig_dir=FIG_DIR
+    # )
     
     train_path = os.path.join(training_cache, 'atac_train')
     test_path  = os.path.join(training_cache, 'atac_test')
+    
+    min_lr = 0.0016694601933888804
+    max_lr = 0.3861439328674
+    model.set_learning_rates(min_lr, max_lr)
+    num_topics = 2
     
     logging.info("Creating and fitting the Bayesian tuner to the scATAC-seq expression data")
     trained_atac_model = create_and_fit_bayesian_tuner_to_data(
         model,
         (train_path, test_path),
         num_topics,
+        n_jobs=NUM_CPU,
         tuner_save_name=tuner_save_dir,
         model_save_path=model_save_path,
         fig_dir=FIG_DIR,
@@ -94,13 +101,16 @@ def create_rna_topic_model(rna_adata):
     rna_expr_model = load_or_create_mira_expression_topic_model(rna_adata, model_save_path)
     
     logging.info("Setting the topic model learning parameters")
-    rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
+    # rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
+    
+
 
     logging.info("Creating and fitting the Bayesian tuner to the scRNA-seq expression data")
     trained_rna_model = create_and_fit_bayesian_tuner_to_data(
         rna_expr_model, 
         rna_adata, 
         num_topics, 
+        num_jobs=NUM_CPU,
         tuner_save_name=tuner_save_dir,
         model_save_path=model_save_path,
         fig_dir=FIG_DIR,
