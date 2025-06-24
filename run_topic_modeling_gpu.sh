@@ -5,12 +5,12 @@
 #SBATCH --error=LOGS/mira_topic_training.err
 #SBATCH -p gpu
 #SBATCH -c 5
-#SBATCH --mem=128
+#SBATCH --mem=128G
 #SBATCH --gres=gpu:1
 
 set -euo pipefail
 
-# srun nvidia-smi
+srun nvidia-smi
 
 source activate mira-env
 

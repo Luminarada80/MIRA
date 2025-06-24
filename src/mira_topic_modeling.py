@@ -123,3 +123,5 @@ atac_adata = load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, bar
 
 # rna_adata, trained_rna_model, barcodes = create_rna_topic_model(rna_adata)
 atac_adata, trained_atac_model = create_atac_topic_model(atac_adata)
+
+trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)

@@ -8,3 +8,4 @@ tuners/
 ds011_rna
 *.pyc
 *.db
+data/*
