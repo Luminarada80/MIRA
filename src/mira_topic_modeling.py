@@ -94,7 +94,7 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
         )
     else:
         logging.info(f"Skipping Bayesian tuner, training the accessibility model using {num_topics} topics")
-        model.set_params(num_topics).fit(atac_adata)
+        model.set_params(num_topics=num_topics).fit(atac_adata)
     
         model.save(model_save_path)
         
@@ -134,7 +134,7 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
             )
     else:
         logging.info(f"Skipping Bayesian tuner, training the expression model using {num_topics} topics")
-        rna_expr_model = rna_expr_model.set_params(num_topics).fit(rna_adata)
+        rna_expr_model = rna_expr_model.set_params(num_topics=num_topics).fit(rna_adata)
         
         rna_expr_model.save(model_save_path)
     logging.info("Done!\n")
