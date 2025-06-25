@@ -28,8 +28,8 @@ atac_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011
 atac_model.predict(atac_adata)
 rna_model.predict(rna_adata)
 
-rna_model.get_umap_features(rna_adata, box_cox=0.25)
-atac_model.get_umap_features(atac_adata, box_cox=0.25)
+rna_model.get_umap_features(rna_adata, box_cox='log')
+atac_model.get_umap_features(atac_adata, box_cox='log')
 
 # Run K-NN and UMAP for RNA data
 sc.pp.neighbors(rna_adata, use_rep = 'X_umap_features', metric = 'manhattan', n_neighbors = 21)

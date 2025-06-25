@@ -63,12 +63,17 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
     if not os.path.exists(test_dir):
         model.write_ondisk_dataset(test, dirname=test_dir)
 
-    logging.info("Setting the topic model learning parameters")
-    model, num_topics = set_model_learning_parameters(
-        model=model,
-        adata=os.path.join(training_cache, 'atac_train'),
-        fig_dir=FIG_DIR
-    )
+    # logging.info("Setting the topic model learning parameters")
+    # model, num_topics = set_model_learning_parameters(
+    #     model=model,
+    #     adata=os.path.join(training_cache, 'atac_train'),
+    #     fig_dir=FIG_DIR
+    # )
+    
+    min_lr = 0.0016694601933888804
+    max_lr = 0.3861439328674
+    model.set_learning_rates(min_lr, max_lr)
+    num_topics = 2
     
     # Skipping the Bayesian tuner is faster, but less optimal
     if bayesian_tuner == True:
@@ -105,8 +110,13 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
     logging.info("Loading or creating the MIRA RNA expression topic model")
     rna_expr_model = load_or_create_mira_expression_topic_model(rna_adata, model_save_path)
     
-    logging.info("Setting the topic model learning parameters")
-    rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
+    # logging.info("Setting the topic model learning parameters")
+    # rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
+    
+    min_lr = 0.0029755844103154243  
+    max_lr = 1.1436463937942905
+    rna_expr_model.set_learning_rates(min_lr, max_lr)
+    num_topics = 5
     
     # Skipping the Bayesian tuner is faster, but less optimal
     if bayesian_tuner == True:
