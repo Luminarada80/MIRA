@@ -40,10 +40,10 @@ rna_data_path = os.path.join(input_data_dir, "DS011_mESC_RNA.parquet")
 atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_full.h5ad")
 rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5ad")
 
-def create_atac_topic_model(atac_adata):
+def create_atac_topic_model(atac_adata, bayesian_tuner = True):
     
     model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_model.pth")
-    tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_atacl")
+    tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_atac")
     
     training_cache = os.path.join(DATASET_DIR, f"{DATASET_NAME}_training")
     
@@ -63,38 +63,41 @@ def create_atac_topic_model(atac_adata):
     if not os.path.exists(test_dir):
         model.write_ondisk_dataset(test, dirname=test_dir)
 
-    # logging.info("Setting the topic model learning parameters")
-    # model, num_topics = set_model_learning_parameters(
-    #     model=model,
-    #     adata=os.path.join(training_cache, 'atac_train'),
-    #     fig_dir=FIG_DIR
-    # )
-    
-    train_path = os.path.join(training_cache, 'atac_train')
-    test_path  = os.path.join(training_cache, 'atac_test')
-    
-    min_lr = 0.0016694601933888804
-    max_lr = 0.3861439328674
-    model.set_learning_rates(min_lr, max_lr)
-    num_topics = 2
-    
-    logging.info("Creating and fitting the Bayesian tuner to the scATAC-seq expression data")
-    trained_atac_model = create_and_fit_bayesian_tuner_to_data(
-        model,
-        (train_path, test_path),
-        num_topics,
-        n_jobs=NUM_CPU,
-        tuner_save_name=tuner_save_dir,
-        model_save_path=model_save_path,
-        fig_dir=FIG_DIR,
-        plot_loss=True,
-        plot_pareto=True
+    logging.info("Setting the topic model learning parameters")
+    model, num_topics = set_model_learning_parameters(
+        model=model,
+        adata=os.path.join(training_cache, 'atac_train'),
+        fig_dir=FIG_DIR
     )
+    
+    # Skipping the Bayesian tuner is faster, but less optimal
+    if bayesian_tuner == True:
+        train_path = os.path.join(training_cache, 'atac_train')
+        test_path  = os.path.join(training_cache, 'atac_test')
+        
+        logging.info("Creating and fitting the Bayesian tuner to the scATAC-seq expression data")
+        trained_atac_model = create_and_fit_bayesian_tuner_to_data(
+            model,
+            (train_path, test_path),
+            num_topics,
+            n_jobs=NUM_CPU,
+            tuner_save_name=tuner_save_dir,
+            model_save_path=model_save_path,
+            fig_dir=FIG_DIR,
+            plot_loss=True,
+            plot_pareto=True
+        )
+    else:
+        logging.info(f"Skipping Bayesian tuner, training the accessibility model using {num_topics} topics")
+        model.set_params(num_topics).fit(atac_adata)
+    
+        model.save(model_save_path)
+        
     logging.info("Done!\n")
     
     return atac_adata, trained_atac_model
     
-def create_rna_topic_model(rna_adata):
+def create_rna_topic_model(rna_adata, bayesian_tuner = True):
     
     model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_model.pth")
     tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_rna")
@@ -104,19 +107,26 @@ def create_rna_topic_model(rna_adata):
     
     logging.info("Setting the topic model learning parameters")
     rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
-
-    logging.info("Creating and fitting the Bayesian tuner to the scRNA-seq expression data")
-    trained_rna_model = create_and_fit_bayesian_tuner_to_data(
-        rna_expr_model, 
-        rna_adata, 
-        num_topics, 
-        num_jobs=NUM_CPU,
-        tuner_save_name=tuner_save_dir,
-        model_save_path=model_save_path,
-        fig_dir=FIG_DIR,
-        plot_loss=True,
-        plot_pareto=True
-        )
+    
+    # Skipping the Bayesian tuner is faster, but less optimal
+    if bayesian_tuner == True:
+        logging.info("Creating and fitting the Bayesian tuner to the scRNA-seq expression data")
+        trained_rna_model = create_and_fit_bayesian_tuner_to_data(
+            rna_expr_model, 
+            rna_adata, 
+            num_topics, 
+            num_jobs=NUM_CPU,
+            tuner_save_name=tuner_save_dir,
+            model_save_path=model_save_path,
+            fig_dir=FIG_DIR,
+            plot_loss=True,
+            plot_pareto=True
+            )
+    else:
+        logging.info(f"Skipping Bayesian tuner, training the expression model using {num_topics} topics")
+        rna_expr_model = rna_expr_model.set_params(num_topics).fit(rna_adata)
+        
+        rna_expr_model.save(model_save_path)
     logging.info("Done!\n")
     
     return rna_adata, trained_rna_model
@@ -131,7 +141,7 @@ barcodes = rna_adata.obs_names.to_list()
 logging.info("\nLoading and processing the scATAC-seq data")
 atac_adata = load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, barcodes, FIG_DIR)
 
-# rna_adata, trained_rna_model, barcodes = create_rna_topic_model(rna_adata)
-atac_adata, trained_atac_model = create_atac_topic_model(atac_adata)
+rna_adata, trained_rna_model, barcodes = create_rna_topic_model(rna_adata, bayesian_tuner=False)
+atac_adata, trained_atac_model = create_atac_topic_model(atac_adata, bayesian_tuner=False)
 
 # trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)

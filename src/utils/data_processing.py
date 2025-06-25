@@ -40,10 +40,10 @@ def anndata_from_dataframe(df, id_col_name):
 def atac_data_preprocessing(
     atac_adata: anndata.AnnData, 
     barcodes: list[str],
-    filter_gene_min_cells: int = 30, 
-    min_genes_per_cell: int = 1000,
+    filter_peak_min_cells: int = 30, 
+    min_peaks_per_cell: int = 1000,
     fig_dir: str = 'figures',
-    plot_genes_by_counts: bool = True,
+    plot_peaks_by_counts: bool = True,
     h5ad_save_path: Union[None, str] = None
     ) -> anndata.AnnData:
     """
@@ -54,13 +54,13 @@ def atac_data_preprocessing(
             Unprocessed ATACseq AnnData object.
         barcodes (list[str]):
             A list of paired barcodes from the RNAseq dataset.
-        filter_gene_min_cells (int, optional): 
-            A gene must be be expressed in greater than this number of cells. Defaults to 30.
-        min_genes_per_cell (int, optional): 
-            A cell must be expressing more than this number of genes. Defaults to 1000.
+        filter_peak_min_cells (int, optional): 
+            A peak must be be expressed in greater than this number of cells. Defaults to 30.
+        min_peaks_per_cell (int, optional): 
+            A cell must be expressing more than this number of peaks. Defaults to 1000.
         fig_dir (str, optional): 
             Figure for saving the `accessibility_genes_by_counts.png` figure. Defaults to 'figures'.
-        plot_genes_by_counts (bool, optional): 
+        plot_peaks_by_counts (bool, optional): 
             True to plot the figure, False to skip plotting. Defaults to True.
         h5ad_save_path (None | str): 
             Path to save the processed ATAC AnnData object as an h5 file.
@@ -70,14 +70,14 @@ def atac_data_preprocessing(
     """
     
     logging.info("    (1/4) Filtering out very rare peaks")
-    sc.pp.filter_genes(atac_adata, min_cells = filter_gene_min_cells)
+    sc.pp.filter_genes(atac_adata, min_cells = filter_peak_min_cells)
 
     atac_adata = atac_adata[barcodes]
     
     logging.info("    (2/4) Calculating QC metrics")
     sc.pp.calculate_qc_metrics(atac_adata, inplace=True, log1p=False)
     
-    if plot_genes_by_counts:
+    if plot_peaks_by_counts:
         logging.info("      - Plotting genes by counts vs total counts")
         ax: plt.Axes = sc.pl.scatter(atac_adata,
                     x = 'n_genes_by_counts',
@@ -96,13 +96,13 @@ def atac_data_preprocessing(
         
         if isinstance(fig, plt.Figure):
             fig.savefig(
-                os.path.join(qc_fig_path, "accessibility_genes_by_counts.png"),
+                os.path.join(qc_fig_path, "accessibility_peaks_by_counts.png"),
                 dpi=200,
                 bbox_inches="tight"
             )
 
-    logging.info(f"    (3/4) Filtering cells by {min_genes_per_cell} min genes per cell")
-    sc.pp.filter_cells(atac_adata, min_genes=min_genes_per_cell)
+    logging.info(f"    (3/4) Filtering cells by {min_peaks_per_cell} min peaks per cell")
+    sc.pp.filter_cells(atac_adata, min_genes=min_peaks_per_cell)
 
     logging.info(f"    (4/4) Subsampling to 1e5 peaks per cell")
     # If needed, reduce the size of the dataset by subsampling
@@ -175,7 +175,7 @@ def load_and_process_rna_data(rna_data_path, rna_h5ad_save_path):
         rna_adata = rna_data_preprocessing(
             rna_adata=rna_adata,
             min_cells_per_gene=15,
-            target_read_depth=1e4,
+            target_read_depth=1e6,
             min_gene_disp=0.5,
             h5ad_save_path=rna_h5ad_save_path
         )
@@ -199,10 +199,10 @@ def load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, barcodes, fi
         atac_adata = atac_data_preprocessing(
             atac_adata,
             barcodes,
-            filter_gene_min_cells=30,
-            min_genes_per_cell=1000,
+            filter_peak_min_cells=30,
+            min_peaks_per_cell=1000,
             fig_dir=fig_dir,
-            plot_genes_by_counts=True,
+            plot_peaks_by_counts=True,
             h5ad_save_path=atac_h5ad_save_path
         )
         return atac_adata
