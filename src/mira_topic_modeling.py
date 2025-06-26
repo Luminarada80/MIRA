@@ -70,8 +70,8 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
     #     fig_dir=FIG_DIR
     # )
     
-    min_lr = 1e-3
-    max_lr = 0.1
+    min_lr = 1e-5
+    max_lr = 5e-4
     model.set_learning_rates(min_lr, max_lr)
     num_topics = 2
     
@@ -114,8 +114,8 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
     # logging.info("Setting the topic model learning parameters")
     # rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
     
-    min_lr = 1e-3
-    max_lr = 0.1
+    min_lr = 1e-5
+    max_lr = 5e-4
     rna_expr_model.set_learning_rates(min_lr, max_lr)
     num_topics = 5
     
