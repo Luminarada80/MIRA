@@ -70,8 +70,8 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
     #     fig_dir=FIG_DIR
     # )
     
-    min_lr = 0.0016694601933888804
-    max_lr = 0.3861439328674
+    min_lr = 1e-3
+    max_lr = 0.1
     model.set_learning_rates(min_lr, max_lr)
     num_topics = 2
     
@@ -94,9 +94,10 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
         )
     else:
         logging.info(f"Skipping Bayesian tuner, training the accessibility model using {num_topics} topics")
-        model.set_params(num_topics=num_topics).fit(atac_adata)
+        model.set_params(num_topics=num_topics, batch_size=256)
+        trained_atac_model = model.fit(atac_adata)
     
-        model.save(model_save_path)
+        trained_atac_model.save(model_save_path)
         
     logging.info("Done!\n")
     
@@ -113,8 +114,8 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
     # logging.info("Setting the topic model learning parameters")
     # rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
     
-    min_lr = 0.0029755844103154243  
-    max_lr = 1.1436463937942905
+    min_lr = 1e-3
+    max_lr = 0.1
     rna_expr_model.set_learning_rates(min_lr, max_lr)
     num_topics = 5
     
@@ -134,9 +135,10 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
             )
     else:
         logging.info(f"Skipping Bayesian tuner, training the expression model using {num_topics} topics")
-        rna_expr_model = rna_expr_model.set_params(num_topics=num_topics).fit(rna_adata)
+        rna_expr_model = rna_expr_model.set_params(num_topics=num_topics, batch_size=256)
+        trained_rna_model = rna_expr_model.fit(rna_adata)
         
-        rna_expr_model.save(model_save_path)
+        trained_rna_model.save(model_save_path)
     logging.info("Done!\n")
     
     return rna_adata, trained_rna_model

@@ -4,8 +4,8 @@
 #SBATCH --output=LOGS/mira_topic_training.log
 #SBATCH --error=LOGS/mira_topic_training.err
 #SBATCH -p gpu
-#SBATCH -c 2
-#SBATCH --mem=128G
+#SBATCH -c 4
+#SBATCH --mem=64G
 #SBATCH --gres=gpu:1
 
 set -euo pipefail

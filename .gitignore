@@ -9,3 +9,4 @@ ds011_rna
 *.pyc
 *.db
 data/*
+__pycache__/
