@@ -763,14 +763,14 @@ Get the NITE scores for genes and cell states, describes statistical divergence 
 ```
 Note: to conduct NITE score testing with < 2000 genes, manually calculate and provide a measure of the median non-zero count rate across genes
 
-    ```python
-        median_nonzero_counts = np.median(
-                np.array((rna_adata[:, rna_model.features].X > 0).sum(-1))
-            ) # get median number of nonzero counts across genes
-        
-        mira.tl.get_NITE_score_cells(rna_adata, median_nonzero_expression=median_nonzero_counts)
-        mira.tl.get_NITE_score_genes(rna_adata, median_nonzero_expression=median_nonzero_counts)
-    ```
+```python
+    median_nonzero_counts = np.median(
+            np.array((rna_adata[:, rna_model.features].X > 0).sum(-1))
+        ) # get median number of nonzero counts across genes
+    
+    mira.tl.get_NITE_score_cells(rna_adata, median_nonzero_expression=median_nonzero_counts)
+    mira.tl.get_NITE_score_genes(rna_adata, median_nonzero_expression=median_nonzero_counts)
+```
 #### Cell-level NITE Score
 Plot NITE scores for cells, highlights cell states where local chromatin accessibility is less predictive of gene expression
 
