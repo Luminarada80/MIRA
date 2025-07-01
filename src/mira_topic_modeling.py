@@ -5,8 +5,11 @@ import numpy as np
 import torch
 
 from utils.data_processing import ( # type: ignore[import-not-found]
-    load_and_process_atac_data,
-    load_and_process_rna_data,
+    filter_atac_by_distance_to_tss,
+    atac_data_preprocessing,
+    rna_data_preprocessing,
+    convert_anndata_to_pandas,
+    write_processed_dataframe_to_parquet
     )
 
 from utils.topic_models import ( # type: ignore[import-not-found]
@@ -146,14 +149,58 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
 assert torch.cuda.is_available()
 
 logging.info("\nLoading and processing the scRNA-seq data")
-rna_adata = load_and_process_rna_data(rna_data_path, rna_h5ad_save_path)
+rna_adata_processed = rna_data_preprocessing(
+    rna_data_path, 
+    rna_h5ad_save_path,
+    min_cells_per_gene = 15,
+    target_read_depth = 1e6, 
+    min_gene_disp = 0.5,
+    min_genes = 200,
+    max_genes = 2500,
+    max_pct_mt = 5.0,
+    overwrite=True
+)
+logging.info(f"  - Processed RNA shape: {rna_adata_processed.shape}")
 
-barcodes = rna_adata.obs_names.to_list()
+rna_df = convert_anndata_to_pandas(rna_adata_processed, "gene_id")
+write_processed_dataframe_to_parquet(rna_df, rna_data_path)
 
-logging.info("\nLoading and processing the scATAC-seq data")
-atac_adata = load_and_process_atac_data(atac_data_path, atac_h5ad_save_path, barcodes, FIG_DIR)
+barcodes = rna_adata_processed.obs_names.to_list()
+gene_names = rna_adata_processed.var_names.to_list()
 
-rna_adata, trained_rna_model, barcodes = create_rna_topic_model(rna_adata, bayesian_tuner=False)
-atac_adata, trained_atac_model = create_atac_topic_model(atac_adata, bayesian_tuner=False)
+logging.info("\nRunning ATAC preprocessing")
+atac_adata_processed = atac_data_preprocessing(
+    atac_data_path,
+    barcodes,
+    filter_peak_min_cells=30,
+    min_peaks_per_cell=1000,
+    target_read_depth = 1e6,
+    fig_dir=FIG_DIR,
+    plot_peaks_by_counts=True,
+    h5ad_save_path=atac_h5ad_save_path,
+    overwrite=True
+)
+logging.info(f"  - Pre-processed ATAC shape: {atac_adata_processed.shape}")
+
+atac_df = convert_anndata_to_pandas(atac_adata_processed, "peak_id")
+write_processed_dataframe_to_parquet(atac_df, atac_data_path)
+
+logging.info("\nFiltering ATAC peaks by distance to TSS")
+atac_adata_filtered = filter_atac_by_distance_to_tss(
+    atac_df, 
+    gene_names,
+    "mmusculus",
+    1_000_000,
+    DATASET_DIR,
+    FIG_DIR
+    )
+
+logging.info(f"  - ATAC filtered by TSS shape: {atac_adata_filtered.shape}")
+
+logging.info("\n----- Creating RNA Topic Model -----")
+rna_adata, trained_rna_model = create_rna_topic_model(rna_adata_processed, bayesian_tuner=False)
+
+logging.info("\n----- Creating ATAC Topic Model -----")
+atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_filtered, bayesian_tuner=False)
 
 # trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)
