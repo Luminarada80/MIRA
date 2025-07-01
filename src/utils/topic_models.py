@@ -64,7 +64,7 @@ def load_or_create_mira_accessibility_topic_model(
     model: AccessibilityModel = mira.topics.make_model(
         *atac_adata.shape,
         feature_type = 'accessibility',
-        # endogenous_key='endogenous_peaks', # which peaks are used by the encoder network
+        endogenous_key='endogenous_peaks', # which peaks are used by the encoder network
         atac_encoder=atac_encoder
     )
     

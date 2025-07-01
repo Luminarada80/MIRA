@@ -90,7 +90,7 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
             model,
             (train_path, test_path),
             num_topics,
-            n_jobs=1,
+            n_jobs=NUM_CPU,
             tuner_save_name=tuner_save_dir,
             model_save_path=model_save_path,
             fig_dir=FIG_DIR,
@@ -180,7 +180,7 @@ atac_adata_processed = atac_data_preprocessing(
     fig_dir=FIG_DIR,
     plot_peaks_by_counts=True,
     h5ad_save_path=atac_h5ad_save_path,
-    overwrite=False
+    overwrite=True
 )
 logging.info(f"  - Pre-processed ATAC shape: {atac_adata_processed.shape}")
 

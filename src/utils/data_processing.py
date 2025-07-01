@@ -538,10 +538,10 @@ def atac_data_preprocessing(
         logging.info("    (5/5) Logarithmizing the data")
         sc.pp.log1p(atac_adata)
 
-        # logging.info(f"    (5/5) Subsampling to 1e5 peaks per cell")
+        logging.info(f"    (5/5) Subsampling to 1e5 peaks per cell")
         # # If needed, reduce the size of the dataset by subsampling
-        # np.random.seed(0)
-        # atac_adata.var['endogenous_peaks'] = np.random.rand(atac_adata.shape[1]) <= min(1e5/atac_adata.shape[1], 1)
+        np.random.seed(0)
+        atac_adata.var['endogenous_peaks'] = np.random.rand(atac_adata.shape[1]) <= min(1e5/atac_adata.shape[1], 1)
         
         logging.info(f"    - Number of Cells (filtered): {atac_adata.shape[0]}")
         logging.info(f"    - Number of Peaks (filtered): {atac_adata.shape[1]-1}")
