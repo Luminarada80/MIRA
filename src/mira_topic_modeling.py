@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from datetime import datetime
 
 from utils.data_processing import ( # type: ignore[import-not-found]
     filter_atac_by_distance_to_tss,
@@ -46,7 +47,8 @@ rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5
 def create_atac_topic_model(atac_adata, bayesian_tuner = True):
     
     model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_model.pth")
-    tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_atac")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_atac_{timestamp}")
     
     training_cache = os.path.join(DATASET_DIR, f"{DATASET_NAME}_training")
     
@@ -88,7 +90,7 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
             model,
             (train_path, test_path),
             num_topics,
-            n_jobs=NUM_CPU,
+            n_jobs=1,
             tuner_save_name=tuner_save_dir,
             model_save_path=model_save_path,
             fig_dir=FIG_DIR,
@@ -109,7 +111,8 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
 def create_rna_topic_model(rna_adata, bayesian_tuner = True):
     
     model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_model.pth")
-    tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_rna")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    tuner_save_dir = os.path.join(TUNER_DIR, f"{DATASET_NAME}_rna_{timestamp}")
     
     logging.info("Loading or creating the MIRA RNA expression topic model")
     rna_expr_model = load_or_create_mira_expression_topic_model(rna_adata, model_save_path)
@@ -197,7 +200,7 @@ atac_adata_filtered = filter_atac_by_distance_to_tss(
 logging.info(f"  - ATAC filtered by TSS shape: {atac_adata_filtered.shape}")
 
 logging.info("\n----- Creating RNA Topic Model -----")
-rna_adata, trained_rna_model = create_rna_topic_model(rna_adata_processed, bayesian_tuner=True)
+# rna_adata, trained_rna_model = create_rna_topic_model(rna_adata_processed, bayesian_tuner=True)
 
 logging.info("\n----- Creating ATAC Topic Model -----")
 atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_filtered, bayesian_tuner=True)

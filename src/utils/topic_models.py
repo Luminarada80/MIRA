@@ -96,11 +96,9 @@ def set_model_learning_parameters(
         bbox_inches='tight'
     )
 
-    logging.info(f"Setting min learning rate to {min_lr} and max learning rate to {max_lr}")
-    
     min_lr_bounded = max(1e-4, min_lr)
     max_lr_bounded = min(1e-2, max_lr)
-    
+    logging.info(f"Setting min learning rate to {min_lr_bounded} and max learning rate to {max_lr_bounded}")
     model.set_learning_rates(min_lr_bounded, max_lr_bounded) # for larger datasets, the default of 1e-3, 0.1 usually works well.
 
     topic_contributions = mira.topics.gradient_tune(model, adata)
@@ -119,19 +117,6 @@ def set_model_learning_parameters(
         online=False
     )
     num_topics = math.ceil(kneedle.elbow or 2)
-    
-    elbow_plot = plt.figure(figsize=(8, 5))
-    plt.title("Topic Contributions")
-    plt.scatter(np.arange(len(log_contributions)), log_contributions)
-    plt.yscale("log")
-    plt.axhline(num_topics, xmin=0, xmax=len(log_contributions), linestyle="--")
-    
-    if isinstance(elbow_plot, plt.Figure):
-        elbow_plot.savefig(
-            os.path.join(model_fig_dir, f"{model_type}_topic_elbow_selection.png"),
-            dpi=200,
-            bbox_inches='tight',
-        )
     
     logging.info(f'Elbow located at {num_topics}')
 
@@ -207,15 +192,20 @@ def create_and_fit_bayesian_tuner_to_data(
     logging.info(f"      Maximum = {min(50, num_topics + 5)}")
         
     logging.info("  - Creating Bayesian tuner object")
+    tuner_db_file = os.path.abspath(os.path.join("tuners", tuner_save_name + ".db"))
+
+    os.makedirs(os.path.dirname(tuner_db_file), exist_ok=True)
+    tuner_db_uri = f"sqlite:///{tuner_db_file}"
     tuner = mira.topics.BayesianTuner(
-            model = model,
-            n_jobs=n_jobs,
-            save_name = tuner_save_name,
-            #### IMPORTANT
-            min_topics = max(1, num_topics - 5), 
-            max_topics = min(50, num_topics + 5), # tailor for your dataset!!!!
-            #### See "Notes on min_topics, max_topics" above
-            #storage = mira.topics.Redis() # if using REDIS backend for more (>5) processes
+        model = model,
+        n_jobs=n_jobs,
+        save_name = tuner_save_name,
+        storage = tuner_db_uri,
+        #### IMPORTANT
+        min_topics = max(1, num_topics - 5), 
+        max_topics = min(50, num_topics + 5), # tailor for your dataset!!!!
+        #### See "Notes on min_topics, max_topics" above
+        #storage = mira.topics.Redis() # if using REDIS backend for more (>5) processes
     )
 
     logging.info("  - Fitting the data to the tuner")
@@ -226,6 +216,7 @@ def create_and_fit_bayesian_tuner_to_data(
         
     else:
         logging.info(f"      Using in-memory AnnData object")
+        tuner.purge()
         tuner.fit(adata)
     
     tuner_dir = os.path.join(fig_dir, "tuner_train_figs")

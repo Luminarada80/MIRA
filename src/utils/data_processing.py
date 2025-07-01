@@ -249,7 +249,7 @@ def extract_atac_peaks(atac_df, tmp_dir):
         peak_df.to_parquet(os.path.join(tmp_dir, "peak_df.parquet"), engine="pyarrow", index=False, compression="snappy")
         
     else:
-        logging.info("ATAC-seq BED file exists, loading...")
+        logging.info("ATAC-seq peak_df.parquet file exists, loading...")
         peak_df = pd.read_parquet(os.path.join(tmp_dir, "peak_df.parquet"), engine="pyarrow")
         
     return peak_df
