@@ -18,12 +18,7 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 def plot_feature_score_histogram(df, score_col, fig_dir):
     logging.info("\tPlotting feature score histogram")
     
-    if isinstance(df, dd.DataFrame):
-        logging.info("\tConverting feature columns from Dask to pandas for plotting")
-        df_series = df[score_col].compute()
-    else:
-        # If it’s already a Pandas DataFrame, pull out the column as a Series:
-        df_series = df[score_col]
+    df_series = df[score_col]
     
     os.makedirs(fig_dir, exist_ok=True)
 
@@ -145,6 +140,7 @@ def write_processed_dataframe_to_parquet(df: pd.DataFrame, data_file_path: str) 
         contains gene / peak names
         data_file_path (str): Path to the input data file.
     """
+
     if not "_processed.parquet" in data_file_path:
     
         def update_name(filename):
@@ -153,6 +149,8 @@ def write_processed_dataframe_to_parquet(df: pd.DataFrame, data_file_path: str) 
 
         data_file_path = update_name(data_file_path)
         logging.info(f"  - Updated file: {data_file_path}")
+        
+        
         
     else:
         logging.info(f"  - Save file already contains '_processed.parquet' ({os.path.basename(data_file_path)}), skipping renaming")
@@ -198,7 +196,28 @@ def load_atac_dataset(atac_data_file: str) -> pd.DataFrame:
     
     df = df.rename(columns={df.columns[0]: "peak_id"})
     
-    logging.info(f'\tNumber of peaks: {df.shape[0]}')
+    return df
+
+
+def load_rna_dataset(rna_data_file: str) -> pd.DataFrame:
+    if rna_data_file.lower().endswith('.parquet'):
+        df = pd.read_parquet(rna_data_file)
+        
+    elif rna_data_file.lower().endswith('.csv'):
+        df = pd.read_csv(rna_data_file, sep=",", header=0, index_col=None)
+        
+    elif rna_data_file.lower().endswith('.tsv'):
+        df = pd.read_csv(rna_data_file, sep="\t", header=0, index_col=None)
+        
+    else:
+        raise ValueError(f"RNA data file must be .csv, .tsv or .parquet: got {rna_data_file}")
+    
+    df = df.rename(columns={df.columns[0]: "gene_id"})
+    
+    if df.empty:
+        raise RuntimeError(f"Failed to load RNA file: {rna_data_file}")
+    
+    logging.info(f'\tNumber of genes: {df.shape[0]}')
     logging.info(f'\tNumber of cells: {df.shape[1]-1}')
     
     return df
@@ -470,7 +489,10 @@ def atac_data_preprocessing(
         
         atac_adata = anndata_from_dataframe(raw_atac_df, "peak_id")
         
-        logging.info("    (1/4) Filtering out very rare peaks")
+        logging.info(f"    - Number of Cells (unfiltered): {atac_adata.shape[0]}")
+        logging.info(f"    - Number of Peaks (unfiltered): {atac_adata.shape[1]-1}")
+        
+        logging.info("    (1/5) Filtering out very rare peaks")
         sc.pp.filter_genes(atac_adata, min_cells = filter_peak_min_cells)
 
         valid_barcodes = [bc for bc in barcodes if bc in atac_adata.obs_names]
@@ -480,7 +502,7 @@ def atac_data_preprocessing(
         
         atac_adata = atac_adata[valid_barcodes]
         
-        logging.info("    (2/4) Calculating QC metrics")
+        logging.info("    (2/5) Calculating QC metrics")
         sc.pp.calculate_qc_metrics(atac_adata, inplace=True, log1p=False)
         
         if plot_peaks_by_counts:
@@ -507,19 +529,22 @@ def atac_data_preprocessing(
                     bbox_inches="tight"
                 )
 
-        logging.info(f"    (3/4) Filtering cells by {min_peaks_per_cell} min peaks per cell")
+        logging.info(f"    (3/5) Filtering cells by {min_peaks_per_cell} min peaks per cell")
         sc.pp.filter_cells(atac_adata, min_genes=min_peaks_per_cell)
         
-        logging.info(f"    (3/5) Normalizing to a read depth of {target_read_depth}")
+        logging.info(f"    (4/5) Normalizing to a read depth of {target_read_depth}")
         sc.pp.normalize_total(atac_adata, target_sum=target_read_depth)
 
-        logging.info("    (4/5) Logarithmizing the data")
+        logging.info("    (5/5) Logarithmizing the data")
         sc.pp.log1p(atac_adata)
 
         # logging.info(f"    (5/5) Subsampling to 1e5 peaks per cell")
         # # If needed, reduce the size of the dataset by subsampling
         # np.random.seed(0)
         # atac_adata.var['endogenous_peaks'] = np.random.rand(atac_adata.shape[1]) <= min(1e5/atac_adata.shape[1], 1)
+        
+        logging.info(f"    - Number of Cells (filtered): {atac_adata.shape[0]}")
+        logging.info(f"    - Number of Peaks (filtered): {atac_adata.shape[1]-1}")
         
         if h5ad_save_path:
             logging.info(f"    Writing h5ad file to {os.path.basename(h5ad_save_path)}")
@@ -574,7 +599,9 @@ def rna_data_preprocessing(
     file_missing = not os.path.isfile(rna_h5ad_save_path)
     if file_missing or overwrite:
         logging.info("  - Reading RNAseq raw data parquet file")
-        rna_data = pd.read_parquet(rna_data_path, engine="pyarrow")
+        rna_data = load_rna_dataset(rna_data_path)
+        logging.info(f"    - Number of Cells (unfiltered): {rna_data.shape[0]}")
+        logging.info(f"    - Number of Genes (unfiltered): {rna_data.shape[1]-1}")
 
         logging.info("  - Converting DataFrame to AnnData object")
         rna_adata = anndata_from_dataframe(rna_data, "gene_id")
@@ -627,6 +654,9 @@ def rna_data_preprocessing(
 
         logging.info(f"    (6/6) Filtering for highly variable genes with dispersion > {min_gene_disp}")
         sc.pp.highly_variable_genes(filtered_adata, min_disp = min_gene_disp)
+        
+        logging.info(f"    - Number of Cells (filtered): {filtered_adata.shape[0]}")
+        logging.info(f"    - Number of Genes (filtered): {filtered_adata.shape[1]-1}")
 
         filtered_adata.layers['counts'] = rawdata
 

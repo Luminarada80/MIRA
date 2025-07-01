@@ -57,12 +57,14 @@ def load_or_create_mira_accessibility_topic_model(
         atac_encoder = "DAN"
     else:
         atac_encoder = "light"
+        
+    
 
     logging.info("Creating MIRA accessibility model from ATACseq AnnData")
     model: AccessibilityModel = mira.topics.make_model(
         *atac_adata.shape,
         feature_type = 'accessibility',
-        endogenous_key='endogenous_peaks', # which peaks are used by the encoder network
+        # endogenous_key='endogenous_peaks', # which peaks are used by the encoder network
         atac_encoder=atac_encoder
     )
     
@@ -95,7 +97,11 @@ def set_model_learning_parameters(
     )
 
     logging.info(f"Setting min learning rate to {min_lr} and max learning rate to {max_lr}")
-    model.set_learning_rates(min_lr, max_lr) # for larger datasets, the default of 1e-3, 0.1 usually works well.
+    
+    min_lr_bounded = max(1e-4, min_lr)
+    max_lr_bounded = min(1e-2, max_lr)
+    
+    model.set_learning_rates(min_lr_bounded, max_lr_bounded) # for larger datasets, the default of 1e-3, 0.1 usually works well.
 
     topic_contributions = mira.topics.gradient_tune(model, adata)
 

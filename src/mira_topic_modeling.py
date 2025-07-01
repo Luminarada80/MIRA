@@ -66,17 +66,17 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
     if not os.path.exists(test_dir):
         model.write_ondisk_dataset(test, dirname=test_dir)
 
-    # logging.info("Setting the topic model learning parameters")
-    # model, num_topics = set_model_learning_parameters(
-    #     model=model,
-    #     adata=os.path.join(training_cache, 'atac_train'),
-    #     fig_dir=FIG_DIR
-    # )
+    logging.info("Setting the topic model learning parameters")
+    model, num_topics = set_model_learning_parameters(
+        model=model,
+        adata=os.path.join(training_cache, 'atac_train'),
+        fig_dir=FIG_DIR
+    )
     
-    min_lr = 1e-5
-    max_lr = 5e-4
-    model.set_learning_rates(min_lr, max_lr)
-    num_topics = 2
+    # min_lr = 1e-5
+    # max_lr = 5e-4
+    # model.set_learning_rates(min_lr, max_lr)
+    # num_topics = 2
     
     # Skipping the Bayesian tuner is faster, but less optimal
     if bayesian_tuner == True:
@@ -114,13 +114,13 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
     logging.info("Loading or creating the MIRA RNA expression topic model")
     rna_expr_model = load_or_create_mira_expression_topic_model(rna_adata, model_save_path)
     
-    # logging.info("Setting the topic model learning parameters")
-    # rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
+    logging.info("Setting the topic model learning parameters")
+    rna_expr_model, num_topics = set_model_learning_parameters(rna_expr_model, rna_adata)
     
-    min_lr = 1e-5
-    max_lr = 5e-4
-    rna_expr_model.set_learning_rates(min_lr, max_lr)
-    num_topics = 5
+    # min_lr = 1e-5
+    # max_lr = 5e-4
+    # rna_expr_model.set_learning_rates(min_lr, max_lr)
+    # num_topics = 5
     
     # Skipping the Bayesian tuner is faster, but less optimal
     if bayesian_tuner == True:
@@ -129,7 +129,7 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
             rna_expr_model, 
             rna_adata, 
             num_topics, 
-            num_jobs=NUM_CPU,
+            n_jobs=NUM_CPU,
             tuner_save_name=tuner_save_dir,
             model_save_path=model_save_path,
             fig_dir=FIG_DIR,
@@ -158,9 +158,8 @@ rna_adata_processed = rna_data_preprocessing(
     min_genes = 200,
     max_genes = 2500,
     max_pct_mt = 5.0,
-    overwrite=True
+    overwrite=False
 )
-logging.info(f"  - Processed RNA shape: {rna_adata_processed.shape}")
 
 rna_df = convert_anndata_to_pandas(rna_adata_processed, "gene_id")
 write_processed_dataframe_to_parquet(rna_df, rna_data_path)
@@ -178,7 +177,7 @@ atac_adata_processed = atac_data_preprocessing(
     fig_dir=FIG_DIR,
     plot_peaks_by_counts=True,
     h5ad_save_path=atac_h5ad_save_path,
-    overwrite=True
+    overwrite=False
 )
 logging.info(f"  - Pre-processed ATAC shape: {atac_adata_processed.shape}")
 
@@ -198,9 +197,9 @@ atac_adata_filtered = filter_atac_by_distance_to_tss(
 logging.info(f"  - ATAC filtered by TSS shape: {atac_adata_filtered.shape}")
 
 logging.info("\n----- Creating RNA Topic Model -----")
-rna_adata, trained_rna_model = create_rna_topic_model(rna_adata_processed, bayesian_tuner=False)
+rna_adata, trained_rna_model = create_rna_topic_model(rna_adata_processed, bayesian_tuner=True)
 
 logging.info("\n----- Creating ATAC Topic Model -----")
-atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_filtered, bayesian_tuner=False)
+atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_filtered, bayesian_tuner=True)
 
 # trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)
