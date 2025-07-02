@@ -150,8 +150,6 @@ def write_processed_dataframe_to_parquet(df: pd.DataFrame, data_file_path: str) 
         data_file_path = update_name(data_file_path)
         logging.info(f"  - Updated file: {data_file_path}")
         
-        
-        
     else:
         logging.info(f"  - Save file already contains '_processed.parquet' ({os.path.basename(data_file_path)}), skipping renaming")
     
@@ -434,11 +432,15 @@ def extract_atac_peaks_near_rna_genes(
 def atac_data_preprocessing(
     atac_data_path: str, 
     barcodes: list[str],
+    gene_names: list[str],
     h5ad_save_path: str,
     filter_peak_min_cells: int = 30, 
     min_peaks_per_cell: int = 1000,
     target_read_depth: float = 1e6,
+    tss_distance_cutoff: Union[int, float] = 1e6,
     fig_dir: str = 'figures',
+    dataset_dir: str = 'mira-datasets',
+    ensembl_species: str = "mmusculus",
     plot_peaks_by_counts: bool = True,
     overwrite: bool = False
     ) -> anndata.AnnData:
@@ -452,14 +454,24 @@ def atac_data_preprocessing(
             Path to save the processed ATAC AnnData object as an h5ad file.
         barcodes (list[str]):
             A list of paired barcodes from the RNAseq dataset.
+        gene_names (list[str]):
+            A list of gene names from the RNAseq dataset.
         filter_peak_min_cells (int, optional): 
             A peak must be be expressed in greater than this number of cells. Defaults to 30.
         min_peaks_per_cell (int, optional): 
             A cell must be expressing more than this number of peaks. Defaults to 1000.
         target_read_depth (float, optional):
-            Normalizes counts per cell to this value. Defaults to 1e6 (CPM normalization)/
+            Normalizes counts per cell to this value. Defaults to 1e6 (CPM normalization).
+        tss_distance_cutoff (int | float, optional):
+            Filter out peak to gene edges for peaks further away than this distance (in base pairs) 
+            from the gene's TSS. Defaults to 1 MB.
         fig_dir (str, optional): 
             Figure for saving the `accessibility_genes_by_counts.png` figure. Defaults to 'figures'.
+        dataset_dir (str, optional):
+            Directory for saving the "peaks_near_genes.parquet" file.
+        ensembl_species (str, optional):
+            Ensembl species name for loading gene TSS locations ('hsapiens' or 'mmusculus'). 
+            Defaults to "mmusculus".
         plot_peaks_by_counts (bool, optional): 
             True to plot the figure, False to skip plotting. Defaults to True.
         h5ad_save_path (None | str): 
@@ -487,8 +499,16 @@ def atac_data_preprocessing(
         logging.info("  - Reading ATACseq raw data")
         raw_atac_df = load_atac_dataset(atac_data_path)
         
-        atac_adata = anndata_from_dataframe(raw_atac_df, "peak_id")
-        
+        logging.info("\nFiltering ATAC peaks by distance to TSS")
+        atac_adata = filter_atac_by_distance_to_tss(
+            raw_atac_df, 
+            gene_names,
+            ensembl_species,
+            tss_distance_cutoff,
+            dataset_dir,
+            fig_dir
+            )
+                
         logging.info(f"    - Number of Cells (unfiltered): {atac_adata.shape[0]}")
         logging.info(f"    - Number of Peaks (unfiltered): {atac_adata.shape[1]-1}")
         

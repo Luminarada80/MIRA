@@ -174,10 +174,13 @@ logging.info("\nRunning ATAC preprocessing")
 atac_adata_processed = atac_data_preprocessing(
     atac_data_path,
     barcodes,
+    gene_names,
     filter_peak_min_cells=30,
     min_peaks_per_cell=1000,
-    target_read_depth = 1e6,
+    target_read_depth=1e6,
+    tss_distance_cutoff=1e6,
     fig_dir=FIG_DIR,
+    dataset_dir=DATASET_DIR,
     plot_peaks_by_counts=True,
     h5ad_save_path=atac_h5ad_save_path,
     overwrite=True
@@ -187,22 +190,12 @@ logging.info(f"  - Pre-processed ATAC shape: {atac_adata_processed.shape}")
 atac_df = convert_anndata_to_pandas(atac_adata_processed, "peak_id")
 write_processed_dataframe_to_parquet(atac_df, atac_data_path)
 
-logging.info("\nFiltering ATAC peaks by distance to TSS")
-atac_adata_filtered = filter_atac_by_distance_to_tss(
-    atac_df, 
-    gene_names,
-    "mmusculus",
-    1_000_000,
-    DATASET_DIR,
-    FIG_DIR
-    )
-
-logging.info(f"  - ATAC filtered by TSS shape: {atac_adata_filtered.shape}")
+logging.info(f"  - ATAC filtered by TSS shape: {atac_adata_processed.shape}")
 
 logging.info("\n----- Creating RNA Topic Model -----")
 # rna_adata, trained_rna_model = create_rna_topic_model(rna_adata_processed, bayesian_tuner=True)
 
 logging.info("\n----- Creating ATAC Topic Model -----")
-atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_filtered, bayesian_tuner=True)
+atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_processed, bayesian_tuner=True)
 
 # trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)
