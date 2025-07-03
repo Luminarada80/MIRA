@@ -19,11 +19,14 @@ umap_kwargs = dict(
 print(mira.__version__)
 mira.utils.pretty_sderr()
 
-rna_adata = anndata.read_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_rna_data.h5ad")
-atac_adata = anndata.read_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_atac_data.h5ad")
+rna_adata = anndata.read_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_data_full.h5ad")
+atac_adata = anndata.read_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_data_full.h5ad")
 
-rna_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_rna_model.pth")
-atac_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_atac_model.pth")
+rna_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_model.pth")
+atac_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_model.pth")
+
+rna_adata.X = rna_adata.layers["counts"]
+atac_adata.X = atac_adata.layers["counts"]
 
 atac_model.predict(atac_adata)
 rna_model.predict(rna_adata)
@@ -97,5 +100,5 @@ clustermap = sns.clustermap(cross_correlation, vmin = 0,
                dendrogram_ratio=0.05, cbar_pos=None, figsize=(7,7))
 clustermap.savefig("/gpfs/Home/esm5360/MIRA/figures/ds011_joint_representations/topic_cross_correlation_clustermap.png", dpi=200)
 
-atac_adata.write_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_atac_data_joint_representation.h5ad")
-rna_adata.write_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_rna_data_joint_representation.h5ad")
+atac_adata.write_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_data_joint_representation.h5ad")
+rna_adata.write_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_data_joint_representation.h5ad")

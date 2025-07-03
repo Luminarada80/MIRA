@@ -57,8 +57,6 @@ def load_or_create_mira_accessibility_topic_model(
         atac_encoder = "DAN"
     else:
         atac_encoder = "light"
-        
-    
 
     logging.info("Creating MIRA accessibility model from ATACseq AnnData")
     model: AccessibilityModel = mira.topics.make_model(

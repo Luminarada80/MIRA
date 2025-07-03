@@ -496,11 +496,11 @@ def atac_data_preprocessing(
                 required when fitting the MIRA LITE model")
     
     
-        logging.info("  - Reading ATACseq raw data")
+        logging.info(f"  - Reading ATACseq raw data file {atac_data_path}")
         raw_atac_df = load_atac_dataset(atac_data_path)
         
         logging.info("\nFiltering ATAC peaks by distance to TSS")
-        atac_adata = filter_atac_by_distance_to_tss(
+        atac_df_filtered = filter_atac_by_distance_to_tss(
             raw_atac_df, 
             gene_names,
             ensembl_species,
@@ -508,6 +508,8 @@ def atac_data_preprocessing(
             dataset_dir,
             fig_dir
             )
+        
+        atac_adata = anndata_from_dataframe(atac_df_filtered, "peak_id")
                 
         logging.info(f"    - Number of Cells (unfiltered): {atac_adata.shape[0]}")
         logging.info(f"    - Number of Peaks (unfiltered): {atac_adata.shape[1]-1}")
@@ -551,6 +553,7 @@ def atac_data_preprocessing(
 
         logging.info(f"    (3/5) Filtering cells by {min_peaks_per_cell} min peaks per cell")
         sc.pp.filter_cells(atac_adata, min_genes=min_peaks_per_cell)
+        atac_adata.layers["counts"] = atac_adata.layers["counts"] = atac_adata.X.copy().astype(np.uint16)
         
         logging.info(f"    (4/5) Normalizing to a read depth of {target_read_depth}")
         sc.pp.normalize_total(atac_adata, target_sum=target_read_depth)
@@ -730,7 +733,7 @@ def filter_atac_by_distance_to_tss(
         FileNotFoundError: ATAC data file path must exist.
 
     Returns:
-        anndata.AnnData: AnnData object of the processed scATAC-seq dataset.
+        pd.DataFrame: Returns atac_df filtered to exclude peaks further than 1 MB from a gene TSS
     """
     
     if not os.path.isdir(output_dir):
@@ -753,10 +756,7 @@ def filter_atac_by_distance_to_tss(
     peak_subset = set(peaks_near_genes_df["peak_id"])
     atac_df_filtered = atac_df[atac_df["peak_id"].isin(peak_subset)]
     logging.info(f'\tNumber of peaks after filtering: {len(atac_df_filtered)} / {len(atac_df)}')
-
-    logging.info("  - Converting DataFrame to AnnData object")
-    atac_adata = anndata_from_dataframe(atac_df_filtered, "peak_id")
     
-    return atac_adata
+    return atac_df_filtered
     
 

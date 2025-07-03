@@ -52,6 +52,10 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
     
     training_cache = os.path.join(DATASET_DIR, f"{DATASET_NAME}_training")
     
+    # MIRA requires raw counts, which were stored in a layer of the AnnData object.
+    # We need to set the expression matrix back to the counts matrix for MIRA
+    atac_adata.X = atac_adata.layers["counts"]
+    
     logging.info("Loading or creating the MIRA ATAC expression topic model")
     model = load_or_create_mira_accessibility_topic_model(atac_adata, model_save_path)
     
