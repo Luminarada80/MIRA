@@ -135,7 +135,7 @@ isd_matrix.to_csv(os.path.join(DATASET_DIR, f"{DATASET_NAME}_mira_tf_tg.tsv"), s
 nitemodel = litemodel.spawn_NITE_model()
 nitemodel.fit(**rp_args, n_workers=32)
 nitemodel.predict(**rp_args)
-nitemodel.save(os.path.join(DATASET_DIR, f"data/{DATASET_NAME}_rpmodels/"))
+nitemodel.save(os.path.join(BASE_DIR, f"data/{DATASET_NAME}_rpmodels/"))
 
 rna_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_nite_pred.h5ad"))
 atac_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_nite_pred.h5ad"))
