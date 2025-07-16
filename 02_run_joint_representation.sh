@@ -14,6 +14,6 @@ source activate mira-env
 cd "/gpfs/Home/esm5360/MIRA/"
 
 echo "Running MIRA Joint Representation"
-python3 src/mira_joint_representation.py
+python3 src/02_mira_joint_representation.py
 
 echo "DONE"

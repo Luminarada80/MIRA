@@ -71,7 +71,8 @@ def load_or_create_mira_accessibility_topic_model(
 def set_model_learning_parameters(
     model: Union[ExpressionModel, AccessibilityModel], 
     adata: Union[anndata.AnnData, str],
-    fig_dir: str = 'figures'
+    fig_dir: str = 'figures',
+    output_dir: str = 'mira-datasets'
     ) -> Tuple[Union[ExpressionModel, AccessibilityModel], int]:
     
     model_type = get_model_modality(model)
@@ -80,31 +81,46 @@ def set_model_learning_parameters(
     model_fig_dir = os.path.join(fig_dir, "model_figs")
     os.makedirs(model_fig_dir, exist_ok=True)
     
-    logging.info("Running the learning rate test:")
-    min_lr, max_lr = model.get_learning_rate_bounds(adata)
+    assert os.path.isdir(output_dir), f"output_dir path is not a directory, currently set to {output_dir}"
     
-    learn_rate_ax = model.plot_learning_rate_bounds()
+    
+    learning_rate_file = os.path.join(output_dir, f"{model_type}_learning_rates.txt")
+    if not os.path.isfile(learning_rate_file):
+        logging.info("Running the learning rate test:")
+        min_lr, max_lr = model.get_learning_rate_bounds(adata)
+        
+        min_lr_bounded = max(1e-4, min_lr)
+        max_lr_bounded = min(1e-2, max_lr)
+        
+        with open(learning_rate_file, 'w') as file:
+            file.write(f"{min_lr},{max_lr}")
+            
+            learn_rate_ax = model.plot_learning_rate_bounds()
 
-    learn_rate_fig = learn_rate_ax.get_figure()
+        learn_rate_fig = learn_rate_ax.get_figure()
 
-    if isinstance(learn_rate_fig, plt.Figure):
-        learn_rate_fig.savefig(
-        os.path.join(model_fig_dir, f"{model_type}_learning_rate_bounds.png"),
-        dpi=200,
-        bbox_inches='tight'
-    )
+        if isinstance(learn_rate_fig, plt.Figure):
+            learn_rate_fig.savefig(
+            os.path.join(model_fig_dir, f"{model_type}_learning_rate_bounds.png"),
+            dpi=200,
+            bbox_inches='tight'
+        )
+    else:
+        logging.info("Cached learning rates found, loading...")
+        with open(learning_rate_file, 'r') as file:
+            line = file.readline()
+            min_lr = float(line.split(",")[0])
+            max_lr = float(line.split(",")[1])
+            
+        min_lr_bounded = max(1e-4, min_lr)
+        max_lr_bounded = min(1e-2, max_lr)
 
-    min_lr_bounded = max(1e-4, min_lr)
-    max_lr_bounded = min(1e-2, max_lr)
+
     logging.info(f"Setting min learning rate to {min_lr_bounded} and max learning rate to {max_lr_bounded}")
     model.set_learning_rates(min_lr_bounded, max_lr_bounded) # for larger datasets, the default of 1e-3, 0.1 usually works well.
 
     topic_contributions = mira.topics.gradient_tune(model, adata)
 
-    sig_topic_contributions = [x for x in topic_contributions if x > 0.05]
-
-    num_sig_topics: int = len(sig_topic_contributions)
-    
     log_contributions = np.log10(np.array(topic_contributions) + 1e-12)  # add epsilon to avoid log(0)
 
     kneedle = KneeLocator(
@@ -199,12 +215,17 @@ def create_and_fit_bayesian_tuner_to_data(
         n_jobs=n_jobs,
         save_name = tuner_save_name,
         storage = tuner_db_uri,
+        max_trials = 50,
         #### IMPORTANT
         min_topics = max(1, num_topics - 5), 
         max_topics = min(50, num_topics + 5), # tailor for your dataset!!!!
         #### See "Notes on min_topics, max_topics" above
         #storage = mira.topics.Redis() # if using REDIS backend for more (>5) processes
     )
+    
+    if not hasattr(tuner.model, "continuous_transformer"):
+        tuner.model.continuous_transformer = None
+        tuner.model.categorical_transformer = None
 
     logging.info("  - Fitting the data to the tuner")
     if isinstance(adata, tuple) and len(adata) == 2:

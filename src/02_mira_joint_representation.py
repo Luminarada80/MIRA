@@ -1,3 +1,4 @@
+import os
 import mira
 import anndata
 import scanpy as sc
@@ -19,11 +20,32 @@ umap_kwargs = dict(
 print(mira.__version__)
 mira.utils.pretty_sderr()
 
-rna_adata = anndata.read_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_data_full.h5ad")
-atac_adata = anndata.read_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_data_full.h5ad")
 
-rna_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_model.pth")
-atac_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_model.pth")
+# ======== SET VARIABLES AND FILE PATHS ==========
+BASE_DIR = "/gpfs/Home/esm5360/MIRA/"
+FIG_DIR = os.path.join(BASE_DIR, "figures/joint_representation")
+TUNER_DIR = os.path.join(BASE_DIR, "tuners")
+DATASET_DIR = os.path.join(BASE_DIR, "mira-datasets/mESC_filtered_L2_E7.5_rep1")
+DATASET_NAME = "mESC_E7.5_rep1"
+NUM_CPU = 2
+
+os.makedirs(FIG_DIR, exist_ok=True)
+os.makedirs(TUNER_DIR, exist_ok=True)
+os.makedirs(DATASET_DIR, exist_ok=True)
+
+atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_full.h5ad")
+rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5ad")
+
+atac_model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_model.pth")
+rna_model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_model.pth")
+
+# ================================================
+
+rna_adata = anndata.read_h5ad(rna_h5ad_save_path)
+atac_adata = anndata.read_h5ad(atac_h5ad_save_path)
+
+rna_model = mira.topics.load_model(rna_model_save_path)
+atac_model = mira.topics.load_model(atac_model_save_path)
 
 rna_adata.X = rna_adata.layers["counts"]
 atac_adata.X = atac_adata.layers["counts"]
@@ -65,7 +87,7 @@ sc.pl.umap(
 )
 
 plt.tight_layout()
-plt.savefig("/gpfs/Home/esm5360/MIRA/figures/ds011_joint_representations/cell_topic_knn_umap.png", dpi=200)
+plt.savefig(os.path.join(FIG_DIR, "cell_topic_knn_umap.png"), dpi=200)
 
 rna_adata, atac_adata = mira.utils.make_joint_representation(rna_adata, atac_adata)
 
@@ -75,7 +97,7 @@ sc.tl.umap(rna_adata, min_dist = 0.1)
 fig, ax = plt.subplots(1,1,figsize=(8,5))
 sc.pl.umap(rna_adata, legend_loc = 'on data', ax = ax, size = 20,
           **umap_kwargs, title = '')
-plt.savefig("/gpfs/Home/esm5360/MIRA/figures/ds011_joint_representations/joint_representation_knn_umap.png", dpi=200)
+plt.savefig(os.path.join(FIG_DIR, "joint_representation_knn_umap.png"), dpi=200)
 
 rna_adata.obs = rna_adata.obs.join(
     atac_adata.obs.add_prefix('ATAC_') # add a prefix so we know which AnnData the column came from
@@ -88,7 +110,7 @@ mira.tl.get_cell_pointwise_mutual_information(rna_adata, atac_adata)
 fig, ax = plt.subplots(1,1,figsize=(8,5))
 sc.pl.umap(rna_adata, color = 'pointwise_mutual_information', ax = ax, vmin = 0,
           color_map='magma', frameon=False, add_outline=True, vmax = 3, size = 25)
-plt.savefig("/gpfs/Home/esm5360/MIRA/figures/ds011_joint_representations/mutual_info_knn_umap.png", dpi=200)
+plt.savefig(os.path.join(FIG_DIR, "mutual_info_knn_umap.png"), dpi=200)
 
 mutual_info_score = mira.tl.summarize_mutual_information(rna_adata, atac_adata)
 print("Mutual information score (0 - low concordence, 0.5 - high concordance)")
@@ -98,7 +120,7 @@ cross_correlation = mira.tl.get_topic_cross_correlation(rna_adata, atac_adata)
 clustermap = sns.clustermap(cross_correlation, vmin = 0,
                cmap = 'magma', method='ward',
                dendrogram_ratio=0.05, cbar_pos=None, figsize=(7,7))
-clustermap.savefig("/gpfs/Home/esm5360/MIRA/figures/ds011_joint_representations/topic_cross_correlation_clustermap.png", dpi=200)
+clustermap.savefig(os.path.join(FIG_DIR, "topic_cross_correlation_clustermap.png"), dpi=200)
 
-atac_adata.write_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_data_joint_representation.h5ad")
-rna_adata.write_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_data_joint_representation.h5ad")
+atac_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_joint_representation.h5ad"))
+rna_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_joint_representation.h5ad"))

@@ -19,6 +19,6 @@ cd "/gpfs/Home/esm5360/MIRA/"
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:32
 
 echo "Running analysis of MIRA embeddings"
-python3 src/mira_topic_modeling.py
+python3 src/01_mira_topic_modeling_mesc.py
 
 echo "DONE"

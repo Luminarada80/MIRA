@@ -13,11 +13,30 @@ import warnings
 warnings.simplefilter("ignore")
 mira.utils.pretty_sderr()
 
-rna_adata = anndata.read_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_data_joint_representation.h5ad")
-atac_adata = anndata.read_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_data_joint_representation.h5ad")
+# ======== SET VARIABLES AND FILE PATHS ==========
+BASE_DIR = "/gpfs/Home/esm5360/MIRA/"
+FIG_DIR = os.path.join(BASE_DIR, "figures/joint_representation")
+TUNER_DIR = os.path.join(BASE_DIR, "tuners")
+DATASET_DIR = os.path.join(BASE_DIR, "mira-datasets/mESC_filtered_L2_E7.5_rep1")
+DATASET_NAME = "mESC_E7.5_rep1"
+NUM_CPU = 2
 
-rna_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_model.pth")
-atac_model = mira.topics.load_model("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_model.pth")
+os.makedirs(FIG_DIR, exist_ok=True)
+os.makedirs(TUNER_DIR, exist_ok=True)
+os.makedirs(DATASET_DIR, exist_ok=True)
+
+atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_joint_representation.h5ad")
+rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_joint_representation.h5ad")
+
+atac_model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_model.pth")
+rna_model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_model.pth")
+# ================================================
+
+rna_adata = anndata.read_h5ad(rna_h5ad_save_path)
+atac_adata = anndata.read_h5ad(atac_h5ad_save_path)
+
+rna_model = mira.topics.load_model(rna_model_save_path)
+atac_model = mira.topics.load_model(atac_model_save_path)
 
 num_genes = rna_adata.X.shape[0]
 top_n_genes = math.ceil(num_genes * 0.05)
@@ -26,7 +45,7 @@ rna_model.post_topics(top_n=top_n_genes)
 
 rna_model.fetch_enrichments(ontologies=['WikiPathways_2019_Mouse'])
 
-mm10_fasta_file = "/gpfs/Home/esm5360/MIRA/data/mm10.fa"
+mm10_fasta_file = os.path.join(BASE_DIR, "data/mm10.fa")
 
 peak_locations = atac_adata.var.index
 
@@ -58,7 +77,7 @@ os.environ["PATH"] = os.pathsep.join([
 
 mira.tools.motif_scan.logger.setLevel(logging.INFO) # make sure progress messages are displayed
 mira.tl.get_motif_hits_in_peaks(atac_adata,
-                    genome_fasta='/gpfs/Home/esm5360/MIRA/data/mm10.fa',
+                    genome_fasta=os.path.join(BASE_DIR, 'data/mm10.fa'),
                     chrom = 'chr', start = 'start', end = 'end',
                     pvalue_threshold=1e-4
                     ) # indicate chrom, start, end of peaks
@@ -78,5 +97,5 @@ motif_scores.var = motif_scores.var.set_index('parsed_name')
 motif_scores.var_names_make_unique()
 motif_scores.obsm['X_umap'] = atac_adata.obsm['X_umap']
 
-rna_adata.write_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_rna_data_topic_analysis.h5ad")
-atac_adata.write_h5ad("/gpfs/Home/esm5360/MIRA/mira-datasets/ds011_full_atac_data_topic_analysis.h5ad")
+rna_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_topic_analysis.h5ad"))
+atac_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_topic_analysis.h5ad"))
