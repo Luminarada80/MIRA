@@ -24,6 +24,7 @@ NUM_CPU = 2
 os.makedirs(FIG_DIR, exist_ok=True)
 os.makedirs(TUNER_DIR, exist_ok=True)
 os.makedirs(DATASET_DIR, exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, f'data/{DATASET_NAME}_rpmodels/'), exist_ok=True)
 
 atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_topic_analysis.h5ad")
 rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_topic_analysis.h5ad")
