@@ -13,7 +13,12 @@ source activate mira-env
 
 cd "/gpfs/Home/esm5360/MIRA/"
 
+BASE_DIR="/gpfs/Home/esm5360/MIRA/"
+DATASET_NAME="ds011_full"
+
 echo "Running MIRA LITE and NITE RP Modeling"
-python3 src/04_mira_regulatory_potential.py
+python3 src/04_mira_regulatory_potential.py \
+    --base_dir "$BASE_DIR" \
+    --dataset_name "$DATASET_NAME"
 
 echo "DONE"

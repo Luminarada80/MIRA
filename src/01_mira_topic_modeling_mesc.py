@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from datetime import datetime
+import argparse
 
 from utils.data_processing import ( # type: ignore[import-not-found]
     filter_atac_by_distance_to_tss,
@@ -25,27 +26,51 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 plt.rcParams.update({'font.size': 14})
 
-# ======== SET VARIABLES AND FILE PATHS ==========
-BASE_DIR = "/gpfs/Home/esm5360/MIRA/"
-FIG_DIR = os.path.join(BASE_DIR, "figures")
-TUNER_DIR = os.path.join(BASE_DIR, "tuners")
-DATASET_DIR = os.path.join(BASE_DIR, "mira-datasets/mESC_filtered_L2_E7.5_rep1")
-DATASET_NAME = "mESC_E7.5_rep1"
-NUM_CPU = 2
-
-os.makedirs(FIG_DIR, exist_ok=True)
-os.makedirs(TUNER_DIR, exist_ok=True)
-os.makedirs(DATASET_DIR, exist_ok=True)
-
-input_data_dir = "/gpfs/Labs/Uzun/SCRIPTS/PROJECTS/2024.SINGLE_CELL_GRN_INFERENCE.MOELLER/input/mESC/filtered_L2_E7.5_rep1/"
-
-atac_data_path = os.path.join(input_data_dir, "mESC_filtered_L2_E7.5_rep1_ATAC.csv")
-rna_data_path = os.path.join(input_data_dir, "mESC_filtered_L2_E7.5_rep1_RNA.csv")
-
-atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_full.h5ad")
-rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5ad")
-
 # ================================================
+
+def parse_args() -> argparse.Namespace:
+    """
+    Parses command-line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments.
+    """
+    parser = argparse.ArgumentParser(description="Process TF motif binding potential.")
+    parser.add_argument(
+        "--base_dir",
+        type=str,
+        required=True,
+        help="Path to the MIRA directory"
+    )
+    parser.add_argument(
+        "--dataset_name",
+        type=str,
+        required=True,
+        help="Descriptive name for the dataset being analyzed"
+    )
+    parser.add_argument(
+        "--input_data_dir",
+        type=str,
+        required=True,
+        help="Path to the directory containing the raw scRNA-seq and scATAC-seq datasets"
+    )
+    
+    parser.add_argument(
+        "--atac_data_filename",
+        type=str,
+        required=True,
+        help="Name of the scATAC-seq data file in input_data_dir"
+    )
+    
+    parser.add_argument(
+        "--rna_data_filename",
+        type=str,
+        required=True,
+        help="Name of the scRNA-seq data file in input_data_dir"
+    )
+    
+    args: argparse.Namespace = parser.parse_args()
+    return args
 
 def create_atac_topic_model(atac_adata, bayesian_tuner = True):
     
@@ -148,6 +173,31 @@ def create_rna_topic_model(rna_adata, bayesian_tuner = True):
     return rna_adata, trained_rna_model
 
 if __name__ == "__main__":
+    args = parse_args()
+
+    # ======== SET VARIABLES AND FILE PATHS ==========
+    BASE_DIR = args.base_dir
+    DATASET_NAME = args.dataset_name
+    
+    
+    FIG_DIR = os.path.join(BASE_DIR, "figures")
+    TUNER_DIR = os.path.join(BASE_DIR, "tuners")
+    DATASET_DIR = os.path.join(BASE_DIR, f"mira-datasets/{DATASET_NAME}")
+
+    NUM_CPU = 2
+
+    os.makedirs(FIG_DIR, exist_ok=True)
+    os.makedirs(TUNER_DIR, exist_ok=True)
+    os.makedirs(DATASET_DIR, exist_ok=True)
+
+    input_data_dir = args.input_data_dir
+
+    atac_data_path = os.path.join(input_data_dir, args.atac_data_filename)
+    rna_data_path = os.path.join(input_data_dir, args.rna_data_filename)
+
+    atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_full.h5ad")
+    rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5ad")
+    
     assert torch.cuda.is_available()
 
     # ------ RNA and ATAC data preprocessing ------
@@ -201,3 +251,5 @@ if __name__ == "__main__":
     atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_processed, bayesian_tuner=False)
 
     # trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)
+
+    

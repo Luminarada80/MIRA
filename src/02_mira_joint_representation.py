@@ -4,6 +4,7 @@ import anndata
 import scanpy as sc
 import numpy as np
 import seaborn as sns
+import argparse
 
 import matplotlib.pyplot as plt
 import matplotlib
@@ -20,107 +21,132 @@ umap_kwargs = dict(
 print(mira.__version__)
 mira.utils.pretty_sderr()
 
+def parse_args() -> argparse.Namespace:
+    """
+    Parses command-line arguments.
 
-# ======== SET VARIABLES AND FILE PATHS ==========
-BASE_DIR = "/gpfs/Home/esm5360/MIRA/"
-FIG_DIR = os.path.join(BASE_DIR, "figures/joint_representation")
-TUNER_DIR = os.path.join(BASE_DIR, "tuners")
-DATASET_DIR = os.path.join(BASE_DIR, "mira-datasets/mESC_filtered_L2_E7.5_rep1")
-DATASET_NAME = "mESC_E7.5_rep1"
-NUM_CPU = 2
+    Returns:
+        argparse.Namespace: Parsed command-line arguments.
+    """
+    parser = argparse.ArgumentParser(description="Process TF motif binding potential.")
+    parser.add_argument(
+        "--base_dir",
+        type=str,
+        required=True,
+        help="Path to the MIRA directory"
+    )
+    parser.add_argument(
+        "--dataset_name",
+        type=str,
+        required=True,
+        help="Descriptive name for the dataset being analyzed"
+    )
+    
+    args: argparse.Namespace = parser.parse_args()
+    return args
 
-os.makedirs(FIG_DIR, exist_ok=True)
-os.makedirs(TUNER_DIR, exist_ok=True)
-os.makedirs(DATASET_DIR, exist_ok=True)
+if __name__ == "__main__":
+    args = parse_args()
+    
+    BASE_DIR = args.base_dir
+    DATASET_NAME = args.dataset_name
 
-atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_full.h5ad")
-rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5ad")
+    FIG_DIR = os.path.join(BASE_DIR, "figures")
+    TUNER_DIR = os.path.join(BASE_DIR, "tuners")
+    DATASET_DIR = os.path.join(BASE_DIR, f"mira-datasets/{DATASET_NAME}")
 
-atac_model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_model.pth")
-rna_model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_model.pth")
+    NUM_CPU = 2
 
-# ================================================
+    os.makedirs(FIG_DIR, exist_ok=True)
+    os.makedirs(TUNER_DIR, exist_ok=True)
+    os.makedirs(DATASET_DIR, exist_ok=True)
+    
+    atac_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_full.h5ad")
+    rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5ad")
 
-rna_adata = anndata.read_h5ad(rna_h5ad_save_path)
-atac_adata = anndata.read_h5ad(atac_h5ad_save_path)
+    atac_model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_model.pth")
+    rna_model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_model.pth")
 
-rna_model = mira.topics.load_model(rna_model_save_path)
-atac_model = mira.topics.load_model(atac_model_save_path)
+    rna_adata = anndata.read_h5ad(rna_h5ad_save_path)
+    atac_adata = anndata.read_h5ad(atac_h5ad_save_path)
 
-rna_adata.X = rna_adata.layers["counts"]
-atac_adata.X = atac_adata.layers["counts"]
+    rna_model = mira.topics.load_model(rna_model_save_path)
+    atac_model = mira.topics.load_model(atac_model_save_path)
 
-atac_model.predict(atac_adata)
-rna_model.predict(rna_adata)
+    rna_adata.X = rna_adata.layers["counts"]
+    atac_adata.X = atac_adata.layers["counts"]
 
-rna_model.get_umap_features(rna_adata, box_cox='log')
-atac_model.get_umap_features(atac_adata, box_cox='log')
+    atac_model.predict(atac_adata)
+    rna_model.predict(rna_adata)
 
-# Run K-NN and UMAP for RNA data
-sc.pp.neighbors(rna_adata, use_rep = 'X_umap_features', metric = 'manhattan', n_neighbors = 21)
-sc.tl.umap(rna_adata, min_dist = 0.1)
-rna_adata.obsm['X_umap'] = rna_adata.obsm['X_umap']*np.array([-1,-1]) # flip for consistency
+    rna_model.get_umap_features(rna_adata, box_cox='log')
+    atac_model.get_umap_features(atac_adata, box_cox='log')
 
-# Run K-NN and UMAP for ATAC data
-sc.pp.neighbors(atac_adata, use_rep = 'X_umap_features', metric = 'manhattan', n_neighbors = 21)
-sc.tl.umap(atac_adata, min_dist = 0.1)
-atac_adata.obsm['X_umap'] = atac_adata.obsm['X_umap']*np.array([1,-1]) # flip for consistency
+    # Run K-NN and UMAP for RNA data
+    sc.pp.neighbors(rna_adata, use_rep = 'X_umap_features', metric = 'manhattan', n_neighbors = 21)
+    sc.tl.umap(rna_adata, min_dist = 0.1)
+    rna_adata.obsm['X_umap'] = rna_adata.obsm['X_umap']*np.array([-1,-1]) # flip for consistency
 
-fig, ax = plt.subplots(1, 2, figsize=(10, 4))
-umap_kwargs = dict(color='topic_0', na_color="lightgrey")
-sc.pl.umap(
-    rna_adata,
-    ax=ax[0],
-    size=20,
-    title="Expression Only",
-    show=False,
-    **umap_kwargs
-)
+    # Run K-NN and UMAP for ATAC data
+    sc.pp.neighbors(atac_adata, use_rep = 'X_umap_features', metric = 'manhattan', n_neighbors = 21)
+    sc.tl.umap(atac_adata, min_dist = 0.1)
+    atac_adata.obsm['X_umap'] = atac_adata.obsm['X_umap']*np.array([1,-1]) # flip for consistency
 
-sc.pl.umap(
-    atac_adata,
-    ax=ax[1],
-    size=20,
-    title="Accessibility Only",
-    show=False,
-    **umap_kwargs
-)
+    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    umap_kwargs = dict(color='topic_0', na_color="lightgrey")
+    sc.pl.umap(
+        rna_adata,
+        ax=ax[0],
+        size=20,
+        title="Expression Only",
+        show=False,
+        **umap_kwargs
+    )
 
-plt.tight_layout()
-plt.savefig(os.path.join(FIG_DIR, "cell_topic_knn_umap.png"), dpi=200)
+    sc.pl.umap(
+        atac_adata,
+        ax=ax[1],
+        size=20,
+        title="Accessibility Only",
+        show=False,
+        **umap_kwargs
+    )
 
-rna_adata, atac_adata = mira.utils.make_joint_representation(rna_adata, atac_adata)
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIG_DIR, "cell_topic_knn_umap.png"), dpi=200)
 
-sc.pp.neighbors(rna_adata, use_rep = 'X_joint_umap_features', metric = 'manhattan',
-               n_neighbors = 20)
-sc.tl.umap(rna_adata, min_dist = 0.1)
-fig, ax = plt.subplots(1,1,figsize=(8,5))
-sc.pl.umap(rna_adata, legend_loc = 'on data', ax = ax, size = 20,
-          **umap_kwargs, title = '')
-plt.savefig(os.path.join(FIG_DIR, "joint_representation_knn_umap.png"), dpi=200)
+    rna_adata, atac_adata = mira.utils.make_joint_representation(rna_adata, atac_adata)
 
-rna_adata.obs = rna_adata.obs.join(
-    atac_adata.obs.add_prefix('ATAC_') # add a prefix so we know which AnnData the column came from
-)
+    sc.pp.neighbors(rna_adata, use_rep = 'X_joint_umap_features', metric = 'manhattan',
+                n_neighbors = 20)
+    sc.tl.umap(rna_adata, min_dist = 0.1)
+    fig, ax = plt.subplots(1,1,figsize=(8,5))
+    sc.pl.umap(rna_adata, legend_loc = 'on data', ax = ax, size = 20,
+            **umap_kwargs, title = '')
+    plt.savefig(os.path.join(FIG_DIR, "joint_representation_knn_umap.png"), dpi=200)
 
-atac_adata.obsm['X_umap'] = rna_adata.obsm['X_umap']
+    rna_adata.obs = rna_adata.obs.join(
+        atac_adata.obs.add_prefix('ATAC_') # add a prefix so we know which AnnData the column came from
+    )
 
-mira.tl.get_cell_pointwise_mutual_information(rna_adata, atac_adata)
+    atac_adata.obsm['X_umap'] = rna_adata.obsm['X_umap']
 
-fig, ax = plt.subplots(1,1,figsize=(8,5))
-sc.pl.umap(rna_adata, color = 'pointwise_mutual_information', ax = ax, vmin = 0,
-          color_map='magma', frameon=False, add_outline=True, vmax = 3, size = 25)
-plt.savefig(os.path.join(FIG_DIR, "mutual_info_knn_umap.png"), dpi=200)
+    mira.tl.get_cell_pointwise_mutual_information(rna_adata, atac_adata)
 
-mutual_info_score = mira.tl.summarize_mutual_information(rna_adata, atac_adata)
-print("Mutual information score (0 - low concordence, 0.5 - high concordance)")
-print(mutual_info_score)
+    fig, ax = plt.subplots(1,1,figsize=(8,5))
+    sc.pl.umap(rna_adata, color = 'pointwise_mutual_information', ax = ax, vmin = 0,
+            color_map='magma', frameon=False, add_outline=True, vmax = 3, size = 25)
+    plt.savefig(os.path.join(FIG_DIR, "mutual_info_knn_umap.png"), dpi=200)
 
-cross_correlation = mira.tl.get_topic_cross_correlation(rna_adata, atac_adata)
-clustermap = sns.clustermap(cross_correlation, vmin = 0,
-               cmap = 'magma', method='ward',
-               dendrogram_ratio=0.05, cbar_pos=None, figsize=(7,7))
-clustermap.savefig(os.path.join(FIG_DIR, "topic_cross_correlation_clustermap.png"), dpi=200)
+    mutual_info_score = mira.tl.summarize_mutual_information(rna_adata, atac_adata)
+    print("Mutual information score (0 - low concordence, 0.5 - high concordance)")
+    print(mutual_info_score)
 
-atac_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_joint_representation.h5ad"))
-rna_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_joint_representation.h5ad"))
+    cross_correlation = mira.tl.get_topic_cross_correlation(rna_adata, atac_adata)
+    clustermap = sns.clustermap(cross_correlation, vmin = 0,
+                cmap = 'magma', method='ward',
+                dendrogram_ratio=0.05, cbar_pos=None, figsize=(7,7))
+    clustermap.savefig(os.path.join(FIG_DIR, "topic_cross_correlation_clustermap.png"), dpi=200)
+
+    atac_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_data_joint_representation.h5ad"))
+    rna_adata.write_h5ad(os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_joint_representation.h5ad"))
