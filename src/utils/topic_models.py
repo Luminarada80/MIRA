@@ -90,7 +90,7 @@ def set_model_learning_parameters(
         min_lr, max_lr = model.get_learning_rate_bounds(adata)
         
         min_lr_bounded = max(1e-4, min_lr)
-        max_lr_bounded = min(1e-2, max_lr)
+        max_lr_bounded = min(1e-3, max_lr)
         
         with open(learning_rate_file, 'w') as file:
             file.write(f"{min_lr},{max_lr}")
@@ -130,7 +130,7 @@ def set_model_learning_parameters(
         direction="decreasing",
         online=False
     )
-    num_topics = math.ceil(kneedle.elbow or 2)
+    num_topics = max(5, math.ceil(kneedle.elbow))
     
     logging.info(f'Elbow located at {num_topics}')
 

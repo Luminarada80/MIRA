@@ -47,7 +47,7 @@ rna_h5ad_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_rna_data_full.h5
 
 # ================================================
 
-def create_atac_topic_model(atac_adata, bayesian_tuner = True):
+def create_atac_topic_model(atac_adata, output_dir, bayesian_tuner = True):
     
     model_save_path = os.path.join(DATASET_DIR, f"{DATASET_NAME}_atac_model.pth")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -80,7 +80,7 @@ def create_atac_topic_model(atac_adata, bayesian_tuner = True):
         model=model,
         adata=os.path.join(training_cache, 'atac_train'),
         fig_dir=FIG_DIR,
-        output_dir=OUTPUT_DIR
+        output_dir=output_dir
     )
     
     # min_lr = 1e-5
@@ -205,9 +205,9 @@ if __name__ == "__main__":
     
     # ------ Topic Modeling ------
     logging.info("\n----- Creating RNA Topic Model -----")
-    # rna_adata, trained_rna_model = create_rna_topic_model(rna_adata_processed, bayesian_tuner=True)
+    rna_adata, trained_rna_model = create_rna_topic_model(rna_adata_processed, bayesian_tuner=True)
 
     logging.info("\n----- Creating ATAC Topic Model -----")
-    # atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_processed, bayesian_tuner=True)
+    atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_processed, bayesian_tuner=True)
 
     # trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)

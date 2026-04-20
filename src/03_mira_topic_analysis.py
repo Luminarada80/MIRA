@@ -107,12 +107,12 @@ if __name__ == "__main__":
     mira.tl.get_motif_hits_in_peaks(atac_adata,
                         genome_fasta=os.path.join(BASE_DIR, 'data/mm10.fa'),
                         chrom = 'chr', start = 'start', end = 'end',
-                        pvalue_threshold=1e-4
+                        pvalue_threshold=1e-6
                         ) # indicate chrom, start, end of peaks
 
-    mira.utils.subset_factors(atac_adata,
-                            use_factors=[factor.upper() for factor in rna_adata.var_names
-                                        if not ('FOS' in factor or 'JUN' in factor)])
+    # mira.utils.subset_factors(atac_adata,
+    #                         use_factors=[factor.upper() for factor in rna_adata.var_names
+    #                                     if not ('FOS' in factor or 'JUN' in factor)])
 
     topics = [int(i.replace("topic_", "")) for i in atac_adata.obs if "topic" in i]
     for topic in topics:

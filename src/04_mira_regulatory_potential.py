@@ -66,6 +66,8 @@ if __name__ == "__main__":
 
     rna_model = mira.topics.load_model(rna_model_save_path)
     atac_model = mira.topics.load_model(atac_model_save_path)
+    
+    os.makedirs(os.path.join(BASE_DIR, f"data/{DATASET_NAME}_rpmodels"), exist_ok=True)
 
     # TSS Annotations
     mira.datasets.mm10_chrom_sizes()
@@ -112,7 +114,7 @@ if __name__ == "__main__":
     rna_adata.X = rna_adata.layers["counts"]
     litemodel.fit(**rp_args, n_workers=32, callback=mira.rp.SaveCallback(os.path.join(BASE_DIR, f'data/{DATASET_NAME}_rpmodels/')))
     litemodel.predict(**rp_args)
-
+    
     # NITE Model
     print("Creating NITE model")
     nitemodel = litemodel.spawn_NITE_model()
@@ -225,5 +227,13 @@ if __name__ == "__main__":
     gene_cell_chromatin_diff.to_csv(os.path.join(DATASET_DIR, f"{DATASET_NAME}_chromatin_differential.csv"))
     avg_chrom_diff = gene_cell_chromatin_diff.mean(axis=1)
     regulatory_potential_df["avg_chromatin_differential"] = regulatory_potential_df["target_id"].map(avg_chrom_diff)
-    regulatory_potential_df.to_parquet(os.path.join(DATASET_DIR, f"{DATASET_NAME}_mira_peak_to_tg_scores.parquet"), engine="pyarrow", compression="snappy")
+
+    regulatory_potential_df["LITE_score"] = regulatory_potential_df["LITE_score"].astype(float)
+    regulatory_potential_df["NITE_score"] = regulatory_potential_df["NITE_score"].astype(float)
+
+    regulatory_potential_df.to_parquet(
+        os.path.join(DATASET_DIR, f"{DATASET_NAME}_mira_peak_to_tg_scores.parquet"),
+        engine="pyarrow",
+        compression="snappy"
+    )
     print("DONE!")

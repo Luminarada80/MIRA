@@ -211,7 +211,7 @@ if __name__ == "__main__":
         min_genes = 200,
         max_genes = 2500,
         max_pct_mt = 5.0,
-        overwrite=True
+        overwrite=False
     )
 
     rna_df = convert_anndata_to_pandas(rna_adata_processed, "gene_id")
@@ -233,7 +233,7 @@ if __name__ == "__main__":
         dataset_dir=DATASET_DIR,
         plot_peaks_by_counts=True,
         h5ad_save_path=atac_h5ad_save_path,
-        overwrite=True
+        overwrite=False
     )
     logging.info(f"  - Pre-processed ATAC shape: {atac_adata_processed.shape}")
 
@@ -249,7 +249,5 @@ if __name__ == "__main__":
 
     logging.info("\n----- Creating ATAC Topic Model -----")
     atac_adata, trained_atac_model = create_atac_topic_model(atac_adata_processed, bayesian_tuner=False)
-
-    # trained_atac_model.get_enriched_TFs(atac_adata, topic_num=17, top_quantile=0.1)
 
     
